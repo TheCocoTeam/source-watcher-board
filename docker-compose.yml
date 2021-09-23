@@ -1,0 +1,33 @@
+version: "3.7"
+services:
+  web-server:
+    build:
+      dockerfile: php.Dockerfile
+      context: .
+    restart: always
+    volumes:
+      - "./:/var/www/"
+      - "./docker/php/conf.d/error_reporting.ini:/usr/local/etc/php/conf.d/error_reporting.ini"
+      - "./docker/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
+    ports:
+      - "8181:80"
+
+  mysql-server:
+    image: mysql:8.0.19
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.0.1
+    restart: always
+    environment:
+      PMA_HOST: mysql-server
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    ports:
+      - "5000:80"
+volumes:
+  mysql-data:

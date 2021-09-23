@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <style>
+        html {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        #main-container {
+            width: 100%;
+            height: 100%;
+            float: left;
+        }
+
+        #rows-container {
+            width: 100%;
+            height: 100%;
+            float: left;
+            background-color: pink;
+        }
+
+        #top-menu-container {
+            float: left;
+            width: 100%;
+            height: 40px;
+            background-color: #5c96bc;
+        }
+
+        #central-container {
+            float: left;
+            width: 100%;
+            height: calc(100% - 80px);
+            background-color: #6c757d;
+        }
+
+        #bottom-container {
+            float: left;
+            width: 100%;
+            height: 40px;
+            background-color: #5c96bc;
+        }
+
+        #left-container {
+            float: left;
+            width: 300px;
+            height: 100%;
+            background-color: #5eb4bb;
+        }
+
+        .draggable-item {
+            cursor: grabbing;
+        }
+
+        #diagram-container {
+            float: left;
+            width: calc(100% - 300px);
+            height: 100%;
+        }
+
+        #canvas {
+            background-color: whitesmoke;
+            height: 100%;
+        }
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <script src="js/jsplumb.js"></script>
+    <script src="js/jquery.validate.js"></script>
+    <script src="js/additional-methods.js"></script>
+    <script src="js/app.js"></script>
+
+    <link rel="stylesheet" href="css/jsplumbtoolkit-defaults.css">
+    <link rel="stylesheet" href="css/jsplumbtoolkit-demo.css">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="main-container">
+    <div id="rows-container">
+        <div id="top-menu-container">
+            this is the top menu container
+        </div>
+
+        <div id="central-container">
+            <div id="left-container">
+                <p class="draggable-item" draggable="true" id="extractor-1" ondragstart="dragStart(event)">Extractor 1</p>
+                <p class="draggable-item" draggable="true" id="extractor-2" ondragstart="dragStart(event)">Extractor 2</p>
+                <p class="draggable-item" draggable="true" id="extractor-3" ondragstart="dragStart(event)">Extractor 3</p>
+                <p class="draggable-item" draggable="true" id="extractor-4" ondragstart="dragStart(event)">Extractor 4</p>
+            </div>
+
+            <div id="diagram-container" ondragover="allowDrop(event)" ondrop="drop(event)">
+                <div class="canvas-wide flowchart-demo jtk-surface jtk-surface-nopan" id="canvas">
+                    <div class="window jtk-node" id="flowchartWindow1"><center><strong>Csv</strong><br/><label>Extractor</label></center></div>
+                    <div class="window jtk-node" id="flowchartWindow2"><center><strong>Rename Columns</strong><br/><label>Transformer</label></center></div>
+                    <div class="window jtk-node" id="flowchartWindow3"><center><strong>Database</strong><br/><label>Loader</label></center></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-container">
+            this is the bottom container
+        </div>
+    </div>
+</div>
+
+<script>
+    function dragStart(event) {
+        event.dataTransfer.setData("step-id", event.target.id);
+    }
+
+    function allowDrop(event) {
+        event.preventDefault();
+    }
+
+    function drop(event) {
+        event.preventDefault();
+
+        let bounds = event.target.getBoundingClientRect();
+
+        x = event.clientX - bounds.left;
+        y = event.clientY - bounds.top;
+
+        let stepId = event.dataTransfer.getData("step-id");
+
+        addItem(stepId);
+    }
+
+    let extractor;
+    let transformer;
+    let loader;
+
+    let flowchartCount = 3;
+
+    function addItem(stepId) {
+        console.log("stepId = " + stepId);
+
+        flowchartCount++;
+
+        extractor = $('<div>', { id: 'flowchartWindow' + flowchartCount, class: 'window jtk-node', css: {top: y, left: x} }).html('<center><strong>Some</strong><br/><label>Extractor</label></center>').appendTo('#canvas');
+
+        instance._addEndpoints('Window' + flowchartCount, ['RightMiddle'], []);
+
+        instance.draggable(instance.getSelector('.flowchart-demo .window'), { grid: [20, 20] });
+    }
+
+    let x = undefined;
+    let y = undefined;
+
+    function relativeCoords ( event ) {
+        let bounds = event.target.getBoundingClientRect();
+
+        x = event.clientX - bounds.left;
+        y = event.clientY - bounds.top;
+
+        console.log("x = " + x + ", y = " + y);
+    }
+
+    (function() {
+        let diagramContainer = document.getElementById("diagram-container");
+        diagramContainer.addEventListener("mousemove", relativeCoords, false);
+    })();
+</script>
+</body>
+</html>
