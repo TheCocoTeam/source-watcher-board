@@ -104,9 +104,11 @@
 
             <div id="diagram-container" ondragover="allowDrop(event)" ondrop="drop(event)">
                 <div class="canvas-wide flowchart-demo jtk-surface jtk-surface-nopan" id="canvas">
+                    <!--
                     <div class="window jtk-node" id="flowchartWindow1"><center><strong>Csv</strong><br/><label>Extractor</label></center></div>
                     <div class="window jtk-node" id="flowchartWindow2"><center><strong>Rename Columns</strong><br/><label>Transformer</label></center></div>
                     <div class="window jtk-node" id="flowchartWindow3"><center><strong>Database</strong><br/><label>Loader</label></center></div>
+                    -->
                 </div>
             </div>
         </div>
@@ -238,6 +240,24 @@
         return stepHtml;
     }
 
+    function getExecutionExtractorCode( stepId, numericId ) {
+        let stepHtml = '';
+
+        let step = steps.get( stepId );
+        let stepName = step.name;
+
+        stepHtml = '';
+        stepHtml += '<center>';
+        stepHtml += '<strong>' + stepName + '</strong>';
+        stepHtml += '<br/>';
+        stepHtml += '<label>Execution Extractor</label>';
+        stepHtml += '<br/>';
+        stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
+        stepHtml += '</center>';
+
+        return stepHtml;
+    }
+
     function getTransformerCode( stepId, numericId ) {
         let stepHtml = '';
 
@@ -284,6 +304,10 @@
             stepHtml = getExtractorCode( stepId, numericId );
         }
 
+        if ( stepType === STEP_TYPE_EXECUTION_EXTRACTOR ) {
+            stepHtml = getExecutionExtractorCode( stepId, numericId );
+        }
+
         if ( stepType === STEP_TYPE_TRANSFORMER ) {
             stepHtml = getTransformerCode( stepId, numericId );
         }
@@ -304,11 +328,7 @@
         }
     }
 
-    function addItem( stepId, stepType ) {
-        flowchartCount++;
-
-        $( '<div>', { id: 'flowchartWindow' + flowchartCount, class: 'window jtk-node', css: {top: y, left: x} } ).html( getStepHtml( stepId, flowchartCount ) ).appendTo( '#canvas' );
-
+    function getConnectionSetup( stepType ) {
         let outgoingConnections = [];
         let incomingConnections = [];
 
@@ -332,7 +352,17 @@
             incomingConnections = ['LeftMiddle'];
         }
 
-        instance._addEndpoints( 'Window' + flowchartCount, outgoingConnections, incomingConnections );
+        return {'outgoingConnections': outgoingConnections, 'incomingConnections': incomingConnections};
+    }
+
+    function addItem( stepId, stepType ) {
+        flowchartCount++;
+
+        $( '<div>', { id: 'flowchartWindow' + flowchartCount, class: 'window jtk-node', css: {top: y, left: x} } ).html( getStepHtml( stepId, flowchartCount ) ).appendTo( '#canvas' );
+
+        let connectionSetup = getConnectionSetup( stepType );
+
+        instance._addEndpoints( 'Window' + flowchartCount, connectionSetup.outgoingConnections, connectionSetup.incomingConnections );
 
         instance.draggable( instance.getSelector( '.flowchart-demo .window' ), { grid: [20, 20] } );
     }
