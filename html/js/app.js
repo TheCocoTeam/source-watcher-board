@@ -107,21 +107,19 @@ jsPlumb.ready(function () {
 
         for (let i = 0; i < sourceAnchors.length; i++) {
             const sourceUUID = toId + sourceAnchors[i];
-            console.dir(sourceUUID);
             currentEndpoint = instance.addEndpoint(element, sourceEndpoint, { anchor: sourceAnchors[i], uuid: sourceUUID });
         }
 
         for (let j = 0; j < targetAnchors.length; j++) {
             const targetUUID = toId + targetAnchors[j];
-            console.dir(targetUUID);
             currentEndpoint = instance.addEndpoint(element, targetEndpoint, { anchor: targetAnchors[j], uuid: targetUUID });
         }
     };
 
     instance.batch(function () {
-        instance._addEndpoints('Window1', ['RightMiddle'], []);
-        instance._addEndpoints('Window2', ['RightMiddle'], ['LeftMiddle']);
-        instance._addEndpoints('Window3', [], ['LeftMiddle']);
+        //instance._addEndpoints('Window1', ['RightMiddle'], []);
+        //instance._addEndpoints('Window2', ['RightMiddle'], ['LeftMiddle']);
+        //instance._addEndpoints('Window3', [], ['LeftMiddle']);
 
         instance.bind('connection', function (connInfo, originalEvent) {
             init(connInfo.connection);
@@ -129,19 +127,32 @@ jsPlumb.ready(function () {
 
         instance.draggable(jsPlumb.getSelector('.flowchart-demo .window'), { grid: [20, 20] });
 
-        instance.connect({ uuids: ['Window1RightMiddle', 'Window2LeftMiddle'], detachable: true, editable: true });
-        instance.connect({ uuids: ['Window2RightMiddle', 'Window3LeftMiddle'], detachable: true, editable: true });
+        //instance.connect({ uuids: ['Window1RightMiddle', 'Window2LeftMiddle'], detachable: true, editable: true });
+        //instance.connect({ uuids: ['Window2RightMiddle', 'Window3LeftMiddle'], detachable: true, editable: true });
 
         instance.bind('click', function (connection, originalEvent) {
-            connection.toggleType('basic');
+            //connection.toggleType('basic');
         });
 
         instance.bind('connectionDrag', function (connection) {
-            console.log('connection ' + connection.id + ' is being dragged. suspendedElement is ', connection.suspendedElement, ' of type ', connection.suspendedElementType);
+            console.log('connection ' + connection.id + ' is being dragged');
         });
 
-        instance.bind('connectionDragStop', function (connection) {
-            console.log('connection ' + connection.id + ' was dragged');
+        instance.bind('connectionDragStop', function ( connection ) {
+            let endpoints = connection.endpoints;
+
+            let originEndpoint = endpoints[0];
+            let targetEndpoint = endpoints[1];
+
+            let originStepElementId = originEndpoint.elementId;
+            let targetStepElementId = targetEndpoint.elementId;
+
+            console.log( 'originStepElementId = ' + originStepElementId );
+            console.log( 'targetStepElementId = ' + targetStepElementId );
+
+            // Do validations of origin step and target step. If connection not valid, delete it.
+
+            //instance.deleteConnection( connection );
         });
 
         instance.bind('connectionMoved', function (params) {

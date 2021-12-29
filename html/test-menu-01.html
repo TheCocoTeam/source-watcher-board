@@ -358,7 +358,13 @@
     function addItem( stepId, stepType ) {
         flowchartCount++;
 
-        $( '<div>', { id: 'flowchartWindow' + flowchartCount, class: 'window jtk-node', css: {top: y, left: x} } ).html( getStepHtml( stepId, flowchartCount ) ).appendTo( '#canvas' );
+        let idAttribute = 'flowchartWindow' + flowchartCount;
+        let classAttribute = 'window jtk-node';
+        let cssAttribute = {top: y, left: x};
+
+        let attributes = { id: idAttribute, class: classAttribute, css: cssAttribute, 'data-step-id': stepId };
+
+        $( '<div>', attributes ).html( getStepHtml( stepId, flowchartCount ) ).appendTo( '#canvas' );
 
         let connectionSetup = getConnectionSetup( stepType );
 
@@ -378,8 +384,8 @@
     }
 
     (function() {
-        let diagramContainer = document.getElementById("diagram-container");
-        diagramContainer.addEventListener("mousemove", relativeCoords, false);
+        let diagramContainer = document.getElementById( 'diagram-container' );
+        diagramContainer.addEventListener( 'mousemove', relativeCoords, false );
 
         populateStepsMenu();
     })();
