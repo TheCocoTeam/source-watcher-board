@@ -243,6 +243,10 @@
         return stepHtml;
     }
 
+    function editStep( numericId ) {
+
+    }
+
     function remove( numericId ) {
         if ( confirm( 'Do you confirm removing this step?' ) ) {
             let elementId = 'flowchartWindow' + numericId;
