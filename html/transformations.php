@@ -44,18 +44,18 @@
 </div>
 
 <script>
-    function dragStart( event ) {
-        event.dataTransfer.setData( 'stepId', event.target.id );
+    function dragStart(event) {
+        event.dataTransfer.setData('stepId', event.target.id);
 
         let stepType = event.target.dataset.stepType;
-        event.dataTransfer.setData( 'stepType', stepType );
+        event.dataTransfer.setData('stepType', stepType);
     }
 
-    function allowDrop( event ) {
+    function allowDrop(event) {
         event.preventDefault();
     }
 
-    function drop( event ) {
+    function drop(event) {
         event.preventDefault();
 
         let bounds = event.target.getBoundingClientRect();
@@ -63,10 +63,10 @@
         x = event.clientX - bounds.left;
         y = event.clientY - bounds.top;
 
-        let stepId = event.dataTransfer.getData( 'stepId' );
-        let stepType = event.dataTransfer.getData( 'stepType' );
+        let stepId = event.dataTransfer.getData('stepId');
+        let stepType = event.dataTransfer.getData('stepType');
 
-        addItem( stepId, stepType );
+        addItem(stepId, stepType);
     }
 
     let flowchartCount = 3;
@@ -84,7 +84,11 @@
             'extractor-2', {'type': STEP_TYPE_EXTRACTOR, 'name': 'Database', 'object': 'DatabaseExtractor'},
         ],
         [
-            'extractor-3', {'type': STEP_TYPE_EXECUTION_EXTRACTOR, 'name': 'Find Missing From Sequence', 'object': 'FindMissingFromSequenceExtractor'},
+            'extractor-3', {
+            'type': STEP_TYPE_EXECUTION_EXTRACTOR,
+            'name': 'Find Missing From Sequence',
+            'object': 'FindMissingFromSequenceExtractor'
+        },
         ],
         [
             'extractor-4', {'type': STEP_TYPE_EXTRACTOR, 'name': 'JSON', 'object': 'JsonExtractor'},
@@ -102,29 +106,33 @@
             'transformer-3', {'type': STEP_TYPE_TRANSFORMER, 'name': 'Java', 'object': 'JavaTransformer'}
         ],
         [
-            'transformer-4', {'type': STEP_TYPE_TRANSFORMER, 'name': 'Rename Columns', 'object': 'RenameColumnsTransformer'}
+            'transformer-4', {
+            'type': STEP_TYPE_TRANSFORMER,
+            'name': 'Rename Columns',
+            'object': 'RenameColumnsTransformer'
+        }
         ],
         [
             'loader-1', {'type': STEP_TYPE_LOADER, 'name': 'Database', 'object': 'DatabaseLoader'}
         ]
     ]);
 
-    function getMenuStepName( stepType, stepName ) {
+    function getMenuStepName(stepType, stepName) {
         let fullStepName = '';
 
-        if ( stepType === STEP_TYPE_EXTRACTOR ) {
+        if (stepType === STEP_TYPE_EXTRACTOR) {
             fullStepName = stepName + ' Extractor';
         }
 
-        if ( stepType === STEP_TYPE_EXECUTION_EXTRACTOR ) {
+        if (stepType === STEP_TYPE_EXECUTION_EXTRACTOR) {
             fullStepName = stepName + ' Execution Extractor';
         }
 
-        if ( stepType === STEP_TYPE_TRANSFORMER ) {
+        if (stepType === STEP_TYPE_TRANSFORMER) {
             fullStepName = stepName + ' Transformer';
         }
 
-        if ( stepType === STEP_TYPE_LOADER ) {
+        if (stepType === STEP_TYPE_LOADER) {
             fullStepName = stepName + ' Loader';
         }
 
@@ -133,149 +141,166 @@
 
     function populateStepsMenu() {
         steps.forEach(
-            ( value, key ) => {
-                let attributes = { id: key, class: 'draggable-item', 'data-step-type': value.type, ondragstart: 'dragStart(event)' };
+            (value, key) => {
+                let attributes = {
+                    id: key,
+                    class: 'draggable-item',
+                    'data-step-type': value.type,
+                    ondragstart: 'dragStart(event)'
+                };
 
-                let stepName = getMenuStepName( value.type, value.name );
+                let stepName = getMenuStepName(value.type, value.name);
 
-                $( '<p>', attributes ).html( stepName ).appendTo( '#left-container' );
+                $('<p>', attributes).html(stepName).appendTo('#left-container');
 
-                let currentStep = document.getElementById( key );
-                currentStep.setAttribute( 'draggable', true );
+                let currentStep = document.getElementById(key);
+                currentStep.setAttribute('draggable', true);
             }
         )
     }
 
-    function getExtractorCode( stepId, numericId ) {
+    function getExtractorCode(stepId, numericId) {
         let stepHtml = '';
 
-        let step = steps.get( stepId );
+        let step = steps.get(stepId);
         let stepName = step.name;
 
         stepHtml = '';
-        stepHtml += '<center>';
+        stepHtml += '<p style="text-align: center">';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Extractor</label>';
         stepHtml += '<br/>';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
+        stepHtml += '<br/>';
         stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
-        stepHtml += '</center>';
+        stepHtml += '</p>';
 
         return stepHtml;
     }
 
-    function getExecutionExtractorCode( stepId, numericId ) {
+    function getExecutionExtractorCode(stepId, numericId) {
         let stepHtml = '';
 
-        let step = steps.get( stepId );
+        let step = steps.get(stepId);
         let stepName = step.name;
 
         stepHtml = '';
-        stepHtml += '<center>';
+        stepHtml += '<p style="text-align: center">';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Execution Extractor</label>';
         stepHtml += '<br/>';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
+        stepHtml += '<br/>';
         stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
-        stepHtml += '</center>';
+        stepHtml += '</p>';
 
         return stepHtml;
     }
 
-    function getTransformerCode( stepId, numericId ) {
+    function getTransformerCode(stepId, numericId) {
         let stepHtml = '';
 
-        let step = steps.get( stepId );
+        let step = steps.get(stepId);
         let stepName = step.name;
 
         stepHtml = '';
-        stepHtml += '<center>';
+        stepHtml += '<p style="text-align: center">';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Transformer</label>';
         stepHtml += '<br/>';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
+        stepHtml += '<br/>';
         stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
-        stepHtml += '</center>';
+        stepHtml += '</p>';
 
         return stepHtml;
     }
 
-    function getLoaderCode( stepId, numericId ) {
+    function getLoaderCode(stepId, numericId) {
         let stepHtml = '';
 
-        let step = steps.get( stepId );
+        let step = steps.get(stepId);
         let stepName = step.name;
 
         stepHtml = '';
-        stepHtml += '<center>';
+        stepHtml += '<p style="text-align: center">';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Loader</label>';
         stepHtml += '<br/>';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
+        stepHtml += '<br/>';
         stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
-        stepHtml += '</center>';
+        stepHtml += '</p>';
 
         return stepHtml;
     }
 
-    function getStepHtml( stepId, numericId ) {
+    function getStepHtml(stepId, numericId) {
         let stepHtml = '';
 
-        let step = steps.get( stepId );
+        let step = steps.get(stepId);
         let stepType = step.type;
 
-        if ( stepType === STEP_TYPE_EXTRACTOR ) {
-            stepHtml = getExtractorCode( stepId, numericId );
+        if (stepType === STEP_TYPE_EXTRACTOR) {
+            stepHtml = getExtractorCode(stepId, numericId);
         }
 
-        if ( stepType === STEP_TYPE_EXECUTION_EXTRACTOR ) {
-            stepHtml = getExecutionExtractorCode( stepId, numericId );
+        if (stepType === STEP_TYPE_EXECUTION_EXTRACTOR) {
+            stepHtml = getExecutionExtractorCode(stepId, numericId);
         }
 
-        if ( stepType === STEP_TYPE_TRANSFORMER ) {
-            stepHtml = getTransformerCode( stepId, numericId );
+        if (stepType === STEP_TYPE_TRANSFORMER) {
+            stepHtml = getTransformerCode(stepId, numericId);
         }
 
-        if ( stepType === STEP_TYPE_LOADER ) {
-            stepHtml = getLoaderCode( stepId, numericId );
+        if (stepType === STEP_TYPE_LOADER) {
+            stepHtml = getLoaderCode(stepId, numericId);
         }
 
         return stepHtml;
     }
 
-    function editStep( numericId ) {
-
+    function editStep(numericId) {
+        let elementId = 'flowchartWindow' + numericId;
+        let element = $('#' + elementId);
+        let stepId = $(element).data('step-id');
+        let step = steps.get(stepId);
+        console.dir(step);
     }
 
-    function remove( numericId ) {
-        if ( confirm( 'Do you confirm removing this step?' ) ) {
+    function remove(numericId) {
+        if (confirm('Do you confirm removing this step?')) {
             let elementId = 'flowchartWindow' + numericId;
 
-            instance.deleteConnectionsForElement( elementId );
-            instance.remove( elementId );
+            instance.deleteConnectionsForElement(elementId);
+            instance.remove(elementId);
         }
     }
 
-    function getConnectionSetup( stepType ) {
+    function getConnectionSetup(stepType) {
         let outgoingConnections = [];
         let incomingConnections = [];
 
-        if ( stepType === STEP_TYPE_EXTRACTOR ) {
+        if (stepType === STEP_TYPE_EXTRACTOR) {
             outgoingConnections = ['RightMiddle'];
             incomingConnections = [];
         }
 
-        if ( stepType === STEP_TYPE_EXECUTION_EXTRACTOR ) {
+        if (stepType === STEP_TYPE_EXECUTION_EXTRACTOR) {
             outgoingConnections = ['RightMiddle'];
             incomingConnections = ['LeftMiddle'];
         }
 
-        if ( stepType === STEP_TYPE_TRANSFORMER ) {
+        if (stepType === STEP_TYPE_TRANSFORMER) {
             outgoingConnections = ['RightMiddle'];
             incomingConnections = ['LeftMiddle'];
         }
 
-        if ( stepType === STEP_TYPE_LOADER ) {
+        if (stepType === STEP_TYPE_LOADER) {
             outgoingConnections = [];
             incomingConnections = ['LeftMiddle'];
         }
@@ -283,37 +308,37 @@
         return {'outgoingConnections': outgoingConnections, 'incomingConnections': incomingConnections};
     }
 
-    function addItem( stepId, stepType ) {
+    function addItem(stepId, stepType) {
         flowchartCount++;
 
         let idAttribute = 'flowchartWindow' + flowchartCount;
         let classAttribute = 'window jtk-node';
         let cssAttribute = {top: y, left: x};
 
-        let attributes = { id: idAttribute, class: classAttribute, css: cssAttribute, 'data-step-id': stepId };
+        let attributes = {id: idAttribute, class: classAttribute, css: cssAttribute, 'data-step-id': stepId};
 
-        $( '<div>', attributes ).html( getStepHtml( stepId, flowchartCount ) ).appendTo( '#canvas' );
+        $('<div>', attributes).html(getStepHtml(stepId, flowchartCount)).appendTo('#canvas');
 
-        let connectionSetup = getConnectionSetup( stepType );
+        let connectionSetup = getConnectionSetup(stepType);
 
-        instance._addEndpoints( 'Window' + flowchartCount, connectionSetup.outgoingConnections, connectionSetup.incomingConnections );
+        instance._addEndpoints('Window' + flowchartCount, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
 
-        instance.draggable( instance.getSelector( '.flowchart-demo .window' ), { grid: [20, 20] } );
+        instance.draggable(instance.getSelector('.flowchart-demo .window'), {grid: [20, 20]});
     }
 
     let x = undefined;
     let y = undefined;
 
-    function relativeCoords ( event ) {
+    function relativeCoords(event) {
         let bounds = event.target.getBoundingClientRect();
 
         x = event.clientX - bounds.left;
         y = event.clientY - bounds.top;
     }
 
-    (function() {
-        let diagramContainer = document.getElementById( 'diagram-container' );
-        diagramContainer.addEventListener( 'mousemove', relativeCoords, false );
+    (function () {
+        let diagramContainer = document.getElementById('diagram-container');
+        diagramContainer.addEventListener('mousemove', relativeCoords, false);
 
         populateStepsMenu();
     })();
