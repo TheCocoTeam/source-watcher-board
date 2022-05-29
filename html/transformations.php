@@ -7,14 +7,17 @@
     <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 
-    <script src="js/jsplumb.js"></script>
-    <script src="js/jquery.validate.js"></script>
-    <script src="js/additional-methods.js"></script>
-    <script src="js/app.js"></script>
+    <script src="assets/js/jsplumb.js"></script>
+    <script src="assets/js/jquery.validate.js"></script>
+    <script src="assets/js/additional-methods.js"></script>
+    <script src="assets/js/app.js"></script>
 
-    <link rel="stylesheet" href="css/jsplumbtoolkit-defaults.css">
-    <link rel="stylesheet" href="css/jsplumbtoolkit-demo.css">
-    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="assets/css/jsplumbtoolkit-defaults.css">
+    <link rel="stylesheet" href="assets/css/jsplumbtoolkit-demo.css">
+    <link rel="stylesheet" href="assets/css/app.css">
+
+    <script type="text/javascript" src="assets/js/generic/tools.js"></script>
+    <script type="text/javascript" src="assets/js/views/transformations.js"></script>
 </head>
 <body>
 <div id="main-container">

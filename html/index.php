@@ -1,2 +1,2 @@
-<?php
-echo "source-watcher-board index page";
+<?php declare(strict_types=1);
+header("Location: login.php");
