@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>Login Form</title>
 
-    <link rel="stylesheet" type="text/css" href="assets/css/login.css"/>
+    <link rel="stylesheet" href="assets/css/login.css">
 
-    <script type="text/javascript" src="assets/js/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css"/>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
 
-    <script type="text/javascript" src="assets/js/generic/tools.js"></script>
-    <script type="text/javascript" src="assets/js/views/login.js"></script>
+    <script src="assets/js/generic/tools.js"></script>
+    <script src="assets/js/views/login.js"></script>
 </head>
 
 <body>

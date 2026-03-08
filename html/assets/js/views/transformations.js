@@ -16,6 +16,7 @@ function validateJwt(accessToken) {
     const settings = {
         "async": true,
         "crossDomain": true,
+        "xhrFields": { "withCredentials": true },
         "url": "http://localhost:8181/api/v1/jwt",
         "method": "POST",
         "headers": {
@@ -23,27 +24,30 @@ function validateJwt(accessToken) {
         }
     };
 
-    $.ajax(settings).done(function (response) {
-        // do something specific to the transformations view, such as loading transformations per user
-
-        setInterval(refreshTimer, 10000);
-    });
-
-    $.ajax(settings).fail(function (response) {
-        document.location = 'login.php';
-    });
+    $.ajax(settings)
+        .done(function () {
+            // Check every 60s whether to refresh; only refresh when token has &lt; 5 min left
+            setInterval(refreshTimer, 60000);
+        })
+        .fail(function () {
+            sessionStorage.removeItem('access_token');
+            sessionStorage.removeItem('refresh_token');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            document.location = 'login.php';
+        });
 }
 
 function refreshTimer() {
     let inFiveMin = Math.floor((Date.now() + (5 * 60 * 1000))  / 1000);
 
-    let accessToken = getCookie('access_token');
+    let accessToken = getStoredAccessToken();
     let parsedJwt = parseJwt(accessToken);
     let jwtExpiresAt = parsedJwt.eat;
 
     // If the token expires in 5 minutes or less, refresh the token
     if (inFiveMin >= jwtExpiresAt) {
-        let refreshToken = getCookie('refresh_token');
+        let refreshToken = getStoredRefreshToken();
 
         const form = new FormData();
         form.append("access_token", accessToken);
@@ -52,6 +56,7 @@ function refreshTimer() {
         const settings = {
             "async": true,
             "crossDomain": true,
+            "xhrFields": { "withCredentials": true },
             "url": "http://localhost:8181/api/v1/refresh-token",
             "method": "POST",
             "processData": false,
@@ -61,17 +66,68 @@ function refreshTimer() {
         };
 
         $.ajax(settings).done(function (response) {
-            //console.log(response);
-
-
+            let data = typeof response === 'string' ? JSON.parse(response) : response;
+            let accessToken = data.accessToken || data.access_token;
+            let refreshToken = data.refreshToken || data.refresh_token;
+            if (accessToken) {
+                sessionStorage.setItem('access_token', accessToken);
+                localStorage.setItem('access_token', accessToken);
+            }
+            if (refreshToken) {
+                sessionStorage.setItem('refresh_token', refreshToken);
+                localStorage.setItem('refresh_token', refreshToken);
+            }
         });
     }
-    else {
-        console.log('JWT cannot be refreshed yet. No 5 minute frame yet.')
+}
+
+function getStoredAccessToken() {
+    return sessionStorage.getItem('access_token') || localStorage.getItem('access_token') || getCookie('access_token');
+}
+function getStoredRefreshToken() {
+    return sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token') || getCookie('refresh_token');
+}
+
+function clearTokensAndRedirect() {
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.location = 'login.php';
+}
+
+function logout() {
+    var accessToken = getStoredAccessToken();
+    var refreshToken = getStoredRefreshToken();
+    if (accessToken && refreshToken) {
+        var form = new FormData();
+        form.append('access_token', accessToken);
+        form.append('refresh_token', refreshToken);
+        $.ajax({
+            url: 'http://localhost:8181/api/v1/logout',
+            method: 'POST',
+            data: form,
+            processData: false,
+            contentType: false,
+            xhrFields: { withCredentials: true }
+        }).always(clearTokensAndRedirect);
+    } else {
+        clearTokensAndRedirect();
     }
 }
 
 $(document).ready(function () {
-    let accessToken = getCookie('access_token');
+    $('#logout-btn').on('click', function (e) {
+        e.preventDefault();
+        logout();
+    });
+
+    let accessToken = getStoredAccessToken();
+    if (!accessToken) {
+        document.location = 'login.php';
+        return;
+    }
     validateJwt(accessToken);
 });
