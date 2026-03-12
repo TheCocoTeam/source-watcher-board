@@ -31,6 +31,7 @@ header('Expires: 0');
     <div id="rows-container">
         <div id="top-menu-container">
             <span class="top-menu-title">Source Watcher</span>
+            <button type="button" id="save-transformation-btn" class="top-menu-button">Save transformation</button>
             <a href="login.php" id="logout-btn">Log out</a>
         </div>
 
@@ -62,6 +63,7 @@ header('Expires: 0');
 <div id="step-edit-modal" title="Edit step" style="display: none;">
     <form id="step-edit-form">
         <input type="hidden" id="edit-numeric-id" name="numericId" value="">
+        <div id="step-description-text" class="edit-hint" style="display:none; margin-bottom:8px;"></div>
         <div id="edit-csv-fields" class="edit-step-fields">
             <div class="form-group">
                 <label for="csv-file-path">File path <span class="required">*</span></label>
@@ -88,15 +90,24 @@ header('Expires: 0');
             <div class="form-group">
                 <label for="convertcase-mode">Mode</label>
                 <select id="convertcase-mode" name="convertcaseMode">
-                    <option value="2">Lower</option>
-                    <option value="1">Upper</option>
-                    <option value="3">Title</option>
+                    <option value="lower">Lower</option>
+                    <option value="upper">Upper</option>
+                    <option value="title">Title</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="convertcase-encoding">Encoding</label>
                 <input type="text" id="convertcase-encoding" name="convertcaseEncoding" value="UTF-8" placeholder="UTF-8">
             </div>
+        </div>
+        <div id="edit-rename-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="rename-mappings">Column mappings <span class="required">*</span></label>
+                <textarea id="rename-mappings" name="renameMappings" rows="5" placeholder="old_name -> new_name&#10;email -> email_address"></textarea>
+            </div>
+            <p class="edit-hint">
+                One mapping per line. Use <code>old_name -&gt; new_name</code> or <code>old_name = new_name</code>.
+            </p>
         </div>
         <div id="edit-database-fields" class="edit-step-fields" style="display: none;">
             <div class="form-group">
@@ -193,6 +204,7 @@ header('Expires: 0');
 
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
+    const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
     const STEP_OBJECT_DATABASE_LOADER = 'DatabaseLoader';
 
     function loadStepsFromApi() {
@@ -205,12 +217,132 @@ header('Expires: 0');
             steps.clear();
             if (Array.isArray(data)) {
                 data.forEach(function (s) {
-                    steps.set(s.id, { type: s.type, name: s.name, object: s.object });
+                    steps.set(s.id, {
+                        type: s.type,
+                        name: s.name,
+                        object: s.object,
+                        description: s.description || ''
+                    });
                 });
             }
             populateStepsMenu();
         }).fail(function () {
             $('#left-container').html('<p class="steps-error">Could not load steps. Check the API is running.</p>');
+        });
+    }
+
+    function getCoreStepName(step) {
+        if (!step || !step.object) {
+            return '';
+        }
+        let objectName = step.object;
+        if (objectName.endsWith('Extractor')) {
+            return objectName.replace(/Extractor$/, '');
+        }
+        if (objectName.endsWith('Transformer')) {
+            return objectName.replace(/Transformer$/, '');
+        }
+        if (objectName.endsWith('Loader')) {
+            return objectName.replace(/Loader$/, '');
+        }
+        return objectName;
+    }
+
+    function buildStepsPayload() {
+        let nodes = [];
+
+        $('.flowchart-demo .window').each(function () {
+            let elementId = this.id || '';
+            if (!elementId || elementId.indexOf('flowchartWindow') !== 0) {
+                return;
+            }
+            let numericId = parseInt(elementId.replace('flowchartWindow', ''), 10);
+            if (isNaN(numericId)) {
+                return;
+            }
+            let $el = $(this);
+            let stepId = $el.data('step-id');
+            if (!stepId) {
+                return;
+            }
+            let stepDef = steps.get(stepId);
+            if (!stepDef) {
+                return;
+            }
+            let cfg = nodeConfig[numericId] || {
+                stepId: stepId,
+                stepType: stepDef.type,
+                object: stepDef.object,
+                options: {}
+            };
+            let coreName = getCoreStepName(stepDef);
+            nodes.push({
+                numericId: numericId,
+                type: stepDef.type,
+                name: coreName,
+                options: cfg.options || {}
+            });
+        });
+
+        nodes.sort(function (a, b) {
+            return a.numericId - b.numericId;
+        });
+
+        return nodes.map(function (n) {
+            return {
+                type: n.type,
+                name: n.name,
+                options: n.options
+            };
+        });
+    }
+
+    function saveTransformation() {
+        let stepsPayload = buildStepsPayload();
+        if (!stepsPayload.length) {
+            alert('There are no steps on the canvas to save.');
+            return;
+        }
+
+        let name = window.prompt('Transformation name (optional):');
+        if (name !== null) {
+            name = name.trim();
+        }
+
+        let payload = { steps: stepsPayload };
+        if (name) {
+            payload.name = name;
+        }
+
+        $.ajax({
+            url: 'http://localhost:8181/api/v1/transformation',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(payload),
+            xhrFields: { withCredentials: true }
+        }).done(function (response) {
+            let data = typeof response === 'string' ? JSON.parse(response) : response;
+            let msg = 'Transformation saved.';
+            if (data && data.name) {
+                msg = 'Transformation "' + data.name + '" saved.';
+            }
+            alert(msg);
+        }).fail(function (xhr) {
+            let msg = 'Failed to save transformation.';
+            if (xhr && xhr.responseText) {
+                try {
+                    let err = JSON.parse(xhr.responseText);
+                    if (typeof err === 'string') {
+                        msg = err;
+                    } else if (err && err.message) {
+                        msg = err.message;
+                    }
+                } catch (e) {
+                    // ignore parse errors
+                }
+            }
+            alert(msg);
         });
     }
 
@@ -237,23 +369,45 @@ header('Expires: 0');
     }
 
     function populateStepsMenu() {
-        steps.forEach(
-            (value, key) => {
+        $('#left-container').empty();
+
+        const groups = [
+            { type: STEP_TYPE_EXTRACTOR, label: 'Extractors' },
+            { type: STEP_TYPE_EXECUTION_EXTRACTOR, label: 'Execution extractors' },
+            { type: STEP_TYPE_TRANSFORMER, label: 'Transformers' },
+            { type: STEP_TYPE_LOADER, label: 'Loaders' }
+        ];
+
+        groups.forEach(group => {
+            let hasAny = false;
+            steps.forEach((value, key) => {
+                if (value.type !== group.type) {
+                    return;
+                }
+
+                if (!hasAny) {
+                    $('<div>', {
+                        class: 'steps-group-title'
+                    }).text(group.label).appendTo('#left-container');
+                    hasAny = true;
+                }
+
                 let attributes = {
                     id: key,
                     class: 'draggable-item',
                     'data-step-type': value.type,
-                    ondragstart: 'dragStart(event)'
+                    ondragstart: 'dragStart(event)',
+                    title: value.description || ''
                 };
 
-                let stepName = getMenuStepName(value.type, value.name);
+                let stepName = value.name;
 
                 $('<p>', attributes).html(stepName).appendTo('#left-container');
 
                 let currentStep = document.getElementById(key);
                 currentStep.setAttribute('draggable', true);
-            }
-        )
+            });
+        });
     }
 
     function getExtractorCode(stepId, numericId) {
@@ -262,15 +416,24 @@ header('Expires: 0');
         let step = steps.get(stepId);
         let stepName = step.name;
 
+        let titleAttr = step.description ? ' title="' + step.description.replace(/"/g, '&quot;') + '"' : '';
+
         stepHtml = '';
-        stepHtml += '<p style="text-align: center">';
+        stepHtml += '<p style="text-align: center"' + titleAttr + '>';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Extractor</label>';
         stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
-        stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
+        stepHtml += '<span class="step-actions">';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '</span>';
         stepHtml += '</p>';
 
         return stepHtml;
@@ -282,15 +445,24 @@ header('Expires: 0');
         let step = steps.get(stepId);
         let stepName = step.name;
 
+        let titleAttr = step.description ? ' title="' + step.description.replace(/"/g, '&quot;') + '"' : '';
+
         stepHtml = '';
-        stepHtml += '<p style="text-align: center">';
+        stepHtml += '<p style="text-align: center"' + titleAttr + '>';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Execution Extractor</label>';
         stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
-        stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
+        stepHtml += '<span class="step-actions">';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '</span>';
         stepHtml += '</p>';
 
         return stepHtml;
@@ -302,15 +474,24 @@ header('Expires: 0');
         let step = steps.get(stepId);
         let stepName = step.name;
 
+        let titleAttr = step.description ? ' title="' + step.description.replace(/"/g, '&quot;') + '"' : '';
+
         stepHtml = '';
-        stepHtml += '<p style="text-align: center">';
+        stepHtml += '<p style="text-align: center"' + titleAttr + '>';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Transformer</label>';
         stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
-        stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
+        stepHtml += '<span class="step-actions">';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '</span>';
         stepHtml += '</p>';
 
         return stepHtml;
@@ -322,15 +503,24 @@ header('Expires: 0');
         let step = steps.get(stepId);
         let stepName = step.name;
 
+        let titleAttr = step.description ? ' title="' + step.description.replace(/"/g, '&quot;') + '"' : '';
+
         stepHtml = '';
-        stepHtml += '<p style="text-align: center">';
+        stepHtml += '<p style="text-align: center"' + titleAttr + '>';
         stepHtml += '<strong>' + stepName + '</strong>';
         stepHtml += '<br/>';
         stepHtml += '<label>Loader</label>';
         stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');">Edit</a>';
-        stepHtml += '<br/>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');">Remove</a>';
+        stepHtml += '<span class="step-actions">';
+        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
+        stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
+        stepHtml += '</svg></a>';
+        stepHtml += '</span>';
         stepHtml += '</p>';
 
         return stepHtml;
@@ -370,17 +560,24 @@ header('Expires: 0');
             return;
         }
         $('#edit-numeric-id').val(numericId);
+        if (step.description) {
+            $('#step-description-text').text(step.description).show();
+        } else {
+            $('#step-description-text').hide().text('');
+        }
         $('#edit-csv-fields').hide();
         $('#edit-convertcase-fields').hide();
+        $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
         $('#edit-other-fields').hide();
         if (step.object === STEP_OBJECT_CSV_EXTRACTOR) {
             $('#edit-csv-fields').show();
             let cfg = nodeConfig[numericId] || {};
-            $('#csv-file-path').val(cfg.filePath || '');
-            $('#csv-columns').val(Array.isArray(cfg.columns) ? cfg.columns.join(', ') : (cfg.columns || ''));
-            $('#csv-delimiter').val(cfg.delimiter !== undefined ? cfg.delimiter : ',');
-            $('#csv-enclosure').val(cfg.enclosure !== undefined ? cfg.enclosure : '"');
+            let opts = cfg.options || {};
+            $('#csv-file-path').val(opts.filePath || '');
+            $('#csv-columns').val(Array.isArray(opts.columns) ? opts.columns.join(', ') : (opts.columns || ''));
+            $('#csv-delimiter').val(opts.delimiter !== undefined ? opts.delimiter : ',');
+            $('#csv-enclosure').val(opts.enclosure !== undefined ? opts.enclosure : '"');
             $('#step-edit-modal').dialog('option', 'title', 'Edit CSV Extractor');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
@@ -388,9 +585,32 @@ header('Expires: 0');
             let cfg = nodeConfig[numericId] || {};
             let opts = cfg.options || {};
             $('#convertcase-columns').val(Array.isArray(opts.columns) ? opts.columns.join(', ') : (opts.columns || ''));
-            $('#convertcase-mode').val(opts.mode !== undefined ? String(opts.mode) : '2');
+            var convertCaseModeVal = 'lower';
+if (opts.mode !== undefined) {
+    if (typeof opts.mode === 'string') convertCaseModeVal = opts.mode.toLowerCase();
+    else if (opts.mode === 1) convertCaseModeVal = 'upper';
+    else if (opts.mode === 2) convertCaseModeVal = 'lower';
+    else if (opts.mode === 3) convertCaseModeVal = 'title';
+}
+$('#convertcase-mode').val(convertCaseModeVal);
             $('#convertcase-encoding').val(opts.encoding || 'UTF-8');
             $('#step-edit-modal').dialog('option', 'title', 'Edit Convert Case Transformer');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER) {
+            $('#edit-rename-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            let mappings = [];
+            if (opts.columns && typeof opts.columns === 'object') {
+                Object.keys(opts.columns).forEach(function (oldName) {
+                    let newName = opts.columns[oldName];
+                    if (oldName && newName) {
+                        mappings.push(oldName + ' -> ' + newName);
+                    }
+                });
+            }
+            $('#rename-mappings').val(mappings.join('\n'));
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Rename Columns Transformer');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_DATABASE_LOADER) {
             $('#edit-database-fields').show();
@@ -456,7 +676,7 @@ header('Expires: 0');
                 return;
             }
             let columns = columnsStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-            let mode = parseInt($('#convertcase-mode').val(), 10);
+            let mode = $('#convertcase-mode').val();
             let encoding = $('#convertcase-encoding').val().trim() || 'UTF-8';
             nodeConfig[numericId] = {
                 stepId: stepId,
@@ -466,6 +686,41 @@ header('Expires: 0');
                     columns: columns,
                     mode: mode,
                     encoding: encoding
+                }
+            };
+        } else if (step.object === STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER) {
+            let raw = $('#rename-mappings').val().trim();
+            if (!raw) {
+                alert('At least one column mapping is required.');
+                return;
+            }
+            let lines = raw.split('\n');
+            let columnsMap = {};
+            lines.forEach(function (line) {
+                let text = line.trim();
+                if (!text) {
+                    return;
+                }
+                let parts = text.split('->');
+                if (parts.length < 2) {
+                    parts = text.split('=');
+                }
+                let from = parts[0] ? parts[0].trim() : '';
+                let to = parts[1] ? parts[1].trim() : '';
+                if (from && to) {
+                    columnsMap[from] = to;
+                }
+            });
+            if (Object.keys(columnsMap).length === 0) {
+                alert('Could not parse any valid mappings. Use \"old_name -> new_name\" per line.');
+                return;
+            }
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: {
+                    columns: columnsMap
                 }
             };
         } else if (step.object === STEP_OBJECT_DATABASE_LOADER) {
@@ -605,6 +860,9 @@ header('Expires: 0');
         });
         $('#db-driver').on('change', function () {
             toggleDatabaseDriverFields($(this).val());
+        });
+        $('#save-transformation-btn').on('click', function () {
+            saveTransformation();
         });
     }
 
