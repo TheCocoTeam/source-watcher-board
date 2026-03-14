@@ -35,7 +35,7 @@ function setConnectionLabel(connection, label) {
 }
 
 jsPlumb.ready(function () {
-    instance = window.jsp = jsPlumb.getInstance({
+    instance = window.jsp = window.instance = jsPlumb.getInstance({
         DragOptions: { cursor: 'pointer', zIndex: 2000 },
         ConnectionOverlays: [
             ['Arrow', {
@@ -126,16 +126,24 @@ jsPlumb.ready(function () {
 
     instance._addEndpoints = function (toId, sourceAnchors, targetAnchors) {
         let currentEndpoint = undefined;
-        let element = 'flowchart' + toId;
+        let elementId = 'flowchart' + toId;
+        let el = instance.getElement(elementId);
+        if (!el) {
+            return;
+        }
 
         for (let i = 0; i < sourceAnchors.length; i++) {
             const sourceUUID = toId + sourceAnchors[i];
-            currentEndpoint = instance.addEndpoint(element, sourceEndpoint, { anchor: sourceAnchors[i], uuid: sourceUUID });
+            currentEndpoint = instance.addEndpoint(el, sourceEndpoint, { anchor: sourceAnchors[i], uuid: sourceUUID });
         }
 
         for (let j = 0; j < targetAnchors.length; j++) {
             const targetUUID = toId + targetAnchors[j];
-            currentEndpoint = instance.addEndpoint(element, targetEndpoint, { anchor: targetAnchors[j], uuid: targetUUID });
+            currentEndpoint = instance.addEndpoint(el, targetEndpoint, { anchor: targetAnchors[j], uuid: targetUUID });
+        }
+
+        if (typeof instance.revalidate === 'function') {
+            instance.revalidate(el);
         }
     };
 

@@ -171,10 +171,16 @@ header('Expires: 0');
 
 <script>
     function dragStart(event) {
-        event.dataTransfer.setData('stepId', event.target.id);
-
-        let stepType = event.target.dataset.stepType;
-        event.dataTransfer.setData('stepType', stepType);
+        var dt = (event.originalEvent && event.originalEvent.dataTransfer) || event.dataTransfer;
+        if (!dt) {
+            return;
+        }
+        let el = (event.target && event.target.closest) ? event.target.closest('.draggable-item') : event.target;
+        let stepId = el && el.id ? el.id : '';
+        let stepType = el && el.dataset && el.dataset.stepType ? el.dataset.stepType : '';
+        dt.setData('stepId', stepId);
+        dt.setData('stepType', stepType);
+        dt.setData('text/plain', stepId + '\t' + stepType);
     }
 
     function allowDrop(event) {
@@ -189,8 +195,23 @@ header('Expires: 0');
         x = event.clientX - bounds.left;
         y = event.clientY - bounds.top;
 
-        let stepId = event.dataTransfer.getData('stepId');
-        let stepType = event.dataTransfer.getData('stepType');
+        let stepId = '';
+        let stepType = '';
+        var dt = (event.originalEvent && event.originalEvent.dataTransfer) || event.dataTransfer;
+        if (dt) {
+            stepId = dt.getData('stepId') || '';
+            stepType = dt.getData('stepType') || '';
+            if (!stepId || !stepType) {
+                let plain = dt.getData('text/plain');
+                if (plain) {
+                    let parts = plain.split('\t');
+                    if (parts.length >= 2) {
+                        stepId = parts[0];
+                        stepType = parts[1];
+                    }
+                }
+            }
+        }
 
         addItem(stepId, stepType);
     }
@@ -313,7 +334,10 @@ header('Expires: 0');
         let attributes = { id: idAttribute, class: 'window jtk-node', css: cssAttribute, 'data-step-id': stepId };
         $('<div>', attributes).html(getStepHtml(stepId, numericId)).appendTo('#canvas');
         let connectionSetup = getConnectionSetup(stepType);
-        instance._addEndpoints('Window' + numericId, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
+        var jsp = window.jsp || window.instance;
+        if (jsp && typeof jsp._addEndpoints === 'function') {
+            jsp._addEndpoints('Window' + numericId, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
+        }
         let stepDef = steps.get(stepId);
         nodeConfig[numericId] = {
             stepId: stepId,
@@ -321,7 +345,9 @@ header('Expires: 0');
             object: stepDef ? stepDef.object : '',
             options: options || {}
         };
-        instance.draggable(instance.getSelector('.flowchart-demo .window'), { grid: [20, 20] });
+        if (jsp && typeof jsp.draggable === 'function') {
+            jsp.draggable(jsp.getSelector('.flowchart-demo .window'), { grid: [20, 20] });
+        }
     }
 
     function loadTransformation(name) {
@@ -800,8 +826,10 @@ header('Expires: 0');
 
     function getStepHtml(stepId, numericId) {
         let stepHtml = '';
-
         let step = steps.get(stepId);
+        if (!step || typeof step.type === 'undefined') {
+            return '<p><strong>Unknown step</strong></p>';
+        }
         let stepType = step.type;
 
         if (stepType === STEP_TYPE_EXTRACTOR) {
@@ -1043,9 +1071,11 @@ $('#convertcase-mode').val(convertCaseModeVal);
     function remove(numericId) {
         if (confirm('Do you confirm removing this step?')) {
             let elementId = 'flowchartWindow' + numericId;
-
-            instance.deleteConnectionsForElement(elementId);
-            instance.remove(elementId);
+            var jsp = window.jsp || window.instance;
+            if (jsp) {
+                if (typeof jsp.deleteConnectionsForElement === 'function') jsp.deleteConnectionsForElement(elementId);
+                if (typeof jsp.remove === 'function') jsp.remove(elementId);
+            }
             delete nodeConfig[numericId];
         }
     }
@@ -1078,6 +1108,19 @@ $('#convertcase-mode').val(convertCaseModeVal);
     }
 
     function addItem(stepId, stepType) {
+        if (!stepId || !steps.has(stepId)) {
+            console.warn('addItem: missing or unknown stepId', stepId);
+            alert('Could not add step: step data was lost or steps not loaded. Try again.');
+            return;
+        }
+        if (!stepType) {
+            let step = steps.get(stepId);
+            stepType = step ? step.type : '';
+        }
+        if (!stepType) {
+            alert('Could not add step: step type unknown.');
+            return;
+        }
         flowchartCount++;
 
         let idAttribute = 'flowchartWindow' + flowchartCount;
@@ -1089,10 +1132,20 @@ $('#convertcase-mode').val(convertCaseModeVal);
         $('<div>', attributes).html(getStepHtml(stepId, flowchartCount)).appendTo('#canvas');
 
         let connectionSetup = getConnectionSetup(stepType);
-
-        instance._addEndpoints('Window' + flowchartCount, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
-
-        instance.draggable(instance.getSelector('.flowchart-demo .window'), {grid: [20, 20]});
+        var jsp = window.jsp || (typeof instance !== 'undefined' ? instance : null);
+        var windowId = 'Window' + flowchartCount;
+        if (jsp && typeof jsp._addEndpoints === 'function') {
+            jsp._addEndpoints(windowId, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
+        }
+        if (jsp && typeof jsp.revalidate === 'function') {
+            var elId = 'flowchartWindow' + flowchartCount;
+            setTimeout(function () {
+                if (jsp.revalidate) jsp.revalidate(elId);
+            }, 0);
+        }
+        if (jsp && typeof jsp.draggable === 'function') {
+            jsp.draggable(jsp.getSelector('.flowchart-demo .window'), {grid: [20, 20]});
+        }
     }
 
     let x = undefined;
