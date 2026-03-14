@@ -36,6 +36,7 @@ header('Expires: 0');
             <select id="saved-transformations-select" class="top-menu-select" title="List of saved transformations">
                 <option value="">—</option>
             </select>
+            <button type="button" id="load-transformation-btn" class="top-menu-button">Load</button>
             <a href="login.php" id="logout-btn">Log out</a>
         </div>
 
@@ -271,6 +272,109 @@ header('Expires: 0');
         return objectName;
     }
 
+    /** Find step id from steps Map by type and core name (as stored in .swt). */
+    function getStepIdByTypeAndName(type, name) {
+        let nameStr = (name || '').toString();
+        for (let [stepId, step] of steps) {
+            if (step.type !== type) continue;
+            if (getCoreStepName(step) === nameStr) return stepId;
+        }
+        return null;
+    }
+
+    function clearCanvas() {
+        let jsp = window.jsp;
+        let ids = [];
+        $('.flowchart-demo .window').each(function () {
+            let id = this.id;
+            if (id && id.indexOf('flowchartWindow') === 0) ids.push(id);
+        });
+        ids.forEach(function (id) {
+            if (jsp && typeof jsp.deleteConnectionsForElement === 'function') {
+                jsp.deleteConnectionsForElement(id);
+            }
+            if (jsp && typeof jsp.remove === 'function') {
+                jsp.remove(id);
+            }
+        });
+        nodeConfig = {};
+        flowchartCount = 0;
+    }
+
+    /** Add a single node at (x, y) with given stepId, stepType, and options (for nodeConfig). */
+    function addNodeAt(stepId, stepType, x, y, options) {
+        flowchartCount++;
+        let numericId = flowchartCount;
+        let idAttribute = 'flowchartWindow' + numericId;
+        let cssAttribute = { top: y, left: x };
+        let attributes = { id: idAttribute, class: 'window jtk-node', css: cssAttribute, 'data-step-id': stepId };
+        $('<div>', attributes).html(getStepHtml(stepId, numericId)).appendTo('#canvas');
+        let connectionSetup = getConnectionSetup(stepType);
+        instance._addEndpoints('Window' + numericId, connectionSetup.outgoingConnections, connectionSetup.incomingConnections);
+        let stepDef = steps.get(stepId);
+        nodeConfig[numericId] = {
+            stepId: stepId,
+            stepType: stepType,
+            object: stepDef ? stepDef.object : '',
+            options: options || {}
+        };
+        instance.draggable(instance.getSelector('.flowchart-demo .window'), { grid: [20, 20] });
+    }
+
+    function loadTransformation(name) {
+        if (!name || !name.trim()) return;
+        $.ajax({
+            url: TRANSFORMATION_API_URL + '?name=' + encodeURIComponent(name.trim()),
+            method: 'GET',
+            dataType: 'json',
+            xhrFields: { withCredentials: true }
+        }).done(function (data) {
+            let stepsList = (data && data.steps) ? data.steps : (Array.isArray(data) ? data : null);
+            if (!Array.isArray(stepsList) || stepsList.length === 0) {
+                alert('Transformation has no steps.');
+                return;
+            }
+            clearCanvas();
+            let defaultX = 80, defaultY = 100, defaultSpacing = 180;
+            for (let i = 0; i < stepsList.length; i++) {
+                let step = stepsList[i];
+                let type = (step.type || '').toString();
+                let stepName = (step.name || '').toString();
+                let stepId = getStepIdByTypeAndName(type, stepName);
+                if (!stepId) {
+                    alert('Unknown step type/name: ' + type + ' / ' + stepName + '. Load aborted.');
+                    return;
+                }
+                let stepDef = steps.get(stepId);
+                let stepType = stepDef ? stepDef.type : type;
+                let x = (typeof step.x === 'number') ? step.x : (defaultX + i * defaultSpacing);
+                let y = (typeof step.y === 'number') ? step.y : defaultY;
+                let options = (step.options && typeof step.options === 'object') ? step.options : {};
+                addNodeAt(stepId, stepType, x, y, options);
+            }
+            let jsp = window.jsp;
+            if (jsp && typeof jsp.connect === 'function') {
+                for (let i = 1; i < stepsList.length; i++) {
+                    var sourceUuid = 'Window' + i + 'RightMiddle';
+                    var targetUuid = 'Window' + (i + 1) + 'LeftMiddle';
+                    jsp.connect({ uuids: [sourceUuid, targetUuid], detachable: true, editable: true });
+                }
+            }
+            loadedTransformationName = name.trim();
+        }).fail(function (xhr) {
+            let msg = 'Failed to load transformation.';
+            if (xhr && xhr.responseText) {
+                try {
+                    let err = JSON.parse(xhr.responseText);
+                    if (err && err.message) msg = err.message;
+                } catch (e) {}
+            }
+            alert(msg);
+        });
+    }
+
+    let loadedTransformationName = '';
+
     /**
      * Order step nodes by connection flow (arrows) instead of creation order.
      * Uses topological sort: start from nodes with no incoming edges, then follow outgoing edges.
@@ -399,7 +503,7 @@ header('Expires: 0');
             return;
         }
 
-        let name = window.prompt('Transformation name (optional):');
+        let name = window.prompt('Transformation name (optional):', loadedTransformationName || '');
         if (name !== null) {
             name = name.trim();
         }
@@ -959,6 +1063,14 @@ $('#convertcase-mode').val(convertCaseModeVal);
         });
         $('#save-transformation-btn').on('click', function () {
             saveTransformation();
+        });
+        $('#load-transformation-btn').on('click', function () {
+            let name = $('#saved-transformations-select').val();
+            if (name) {
+                loadTransformation(name);
+            } else {
+                alert('Select a transformation to load.');
+            }
         });
     }
 
