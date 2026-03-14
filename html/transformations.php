@@ -32,6 +32,10 @@ header('Expires: 0');
         <div id="top-menu-container">
             <span class="top-menu-title">Source Watcher</span>
             <button type="button" id="save-transformation-btn" class="top-menu-button">Save transformation</button>
+            <label for="saved-transformations-select" class="top-menu-label">Saved:</label>
+            <select id="saved-transformations-select" class="top-menu-select" title="List of saved transformations">
+                <option value="">—</option>
+            </select>
             <a href="login.php" id="logout-btn">Log out</a>
         </div>
 
@@ -201,6 +205,7 @@ header('Expires: 0');
     let nodeConfig = {};
 
     const STEPS_API_URL = 'http://localhost:8181/api/v1/steps';
+    const TRANSFORMATION_API_URL = 'http://localhost:8181/api/v1/transformation';
 
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
@@ -228,6 +233,24 @@ header('Expires: 0');
             populateStepsMenu();
         }).fail(function () {
             $('#left-container').html('<p class="steps-error">Could not load steps. Check the API is running.</p>');
+        });
+    }
+
+    function loadSavedTransformationsList() {
+        $.ajax({
+            url: TRANSFORMATION_API_URL,
+            method: 'GET',
+            dataType: 'json',
+            xhrFields: { withCredentials: true }
+        }).done(function (data) {
+            let names = (data && Array.isArray(data.names)) ? data.names : [];
+            let $sel = $('#saved-transformations-select');
+            $sel.find('option').not(':first').remove();
+            names.forEach(function (name) {
+                $sel.append($('<option>', { value: name }).text(name));
+            });
+        }).fail(function () {
+            $('#saved-transformations-select').find('option').not(':first').remove();
         });
     }
 
@@ -385,6 +408,7 @@ header('Expires: 0');
                 msg = 'Transformation "' + data.name + '" saved.';
             }
             alert(msg);
+            loadSavedTransformationsList();
         }).fail(function (xhr) {
             let msg = 'Failed to save transformation.';
             if (xhr && xhr.responseText) {
@@ -929,6 +953,7 @@ $('#convertcase-mode').val(convertCaseModeVal);
 
         initStepEditDialog();
         loadStepsFromApi();
+        loadSavedTransformationsList();
     })();
 </script>
 </body>
