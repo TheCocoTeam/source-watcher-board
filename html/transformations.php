@@ -31,12 +31,14 @@ header('Expires: 0');
     <div id="rows-container">
         <div id="top-menu-container">
             <span class="top-menu-title">Source Watcher</span>
-            <button type="button" id="save-transformation-btn" class="top-menu-button">Save transformation</button>
-            <label for="saved-transformations-select" class="top-menu-label">Saved:</label>
+            <label for="saved-transformations-select" class="top-menu-label">Transformations:</label>
             <select id="saved-transformations-select" class="top-menu-select" title="List of saved transformations">
                 <option value="">—</option>
             </select>
             <button type="button" id="load-transformation-btn" class="top-menu-button">Load</button>
+            <button type="button" id="run-transformation-btn" class="top-menu-button">Run saved</button>
+            <button type="button" id="run-current-btn" class="top-menu-button">Run current</button>
+            <button type="button" id="save-transformation-btn" class="top-menu-button">Save</button>
             <a href="login.php" id="logout-btn">Log out</a>
         </div>
 
@@ -47,7 +49,7 @@ header('Expires: 0');
                 <div id="left-container"></div>
             </aside>
 
-            <div id="diagram-container" ondragover="allowDrop(event)" ondrop="drop(event)">
+            <div id="diagram-container">
                 <div class="canvas-wide flowchart-demo jtk-surface jtk-surface-nopan" id="canvas">
                     <!--
                     <div class="window jtk-node" id="flowchartWindow1"><center><strong>Csv</strong><br/><label>Extractor</label></center></div>
@@ -207,6 +209,7 @@ header('Expires: 0');
 
     const STEPS_API_URL = 'http://localhost:8181/api/v1/steps';
     const TRANSFORMATION_API_URL = 'http://localhost:8181/api/v1/transformation';
+    const TRANSFORMATION_RUN_API_URL = 'http://localhost:8181/api/v1/transformation-run';
 
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
@@ -374,6 +377,71 @@ header('Expires: 0');
     }
 
     let loadedTransformationName = '';
+
+    function runTransformationSaved() {
+        let name = $('#saved-transformations-select').val();
+        if (!name) {
+            alert('Select a transformation to run.');
+            return;
+        }
+        let token = typeof getStoredAccessToken === 'function' ? getStoredAccessToken() : (sessionStorage.getItem('access_token') || localStorage.getItem('access_token'));
+        $.ajax({
+            url: TRANSFORMATION_RUN_API_URL,
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ name: name }),
+            xhrFields: { withCredentials: true },
+            headers: token ? { 'x-access-token': token } : {}
+        }).done(function (data) {
+            let msg = (data && data.message) ? data.message : 'Transformation ran successfully.';
+            if (data && data.name) msg += ' (' + data.name + ')';
+            $('#bottom-container').text(msg).css('color', '');
+        }).fail(function (xhr) {
+            let msg = 'Run failed.';
+            if (xhr && xhr.responseText) {
+                try {
+                    let err = JSON.parse(xhr.responseText);
+                    if (err && err.message) msg = err.message;
+                    if (err && err.error) msg += ' ' + err.error;
+                } catch (e) {}
+            }
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+        });
+    }
+
+    function runTransformationCurrent() {
+        let stepsPayload = buildStepsPayload();
+        if (!stepsPayload.length) {
+            alert('There are no steps on the canvas to run.');
+            return;
+        }
+        let token = typeof getStoredAccessToken === 'function' ? getStoredAccessToken() : (sessionStorage.getItem('access_token') || localStorage.getItem('access_token'));
+        $.ajax({
+            url: TRANSFORMATION_RUN_API_URL,
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ steps: stepsPayload }),
+            xhrFields: { withCredentials: true },
+            headers: token ? { 'x-access-token': token } : {}
+        }).done(function (data) {
+            let msg = (data && data.message) ? data.message : 'Transformation ran successfully.';
+            $('#bottom-container').text(msg).css('color', '');
+        }).fail(function (xhr) {
+            let msg = 'Run failed.';
+            if (xhr && xhr.responseText) {
+                try {
+                    let err = JSON.parse(xhr.responseText);
+                    if (err && err.message) msg = err.message;
+                    if (err && err.error) msg += ' ' + err.error;
+                } catch (e) {}
+            }
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+        });
+    }
 
     /**
      * Order step nodes by connection flow (arrows) instead of creation order.
@@ -596,7 +664,6 @@ header('Expires: 0');
                     id: key,
                     class: 'draggable-item',
                     'data-step-type': value.type,
-                    ondragstart: 'dragStart(event)',
                     title: value.description || ''
                 };
 
@@ -625,11 +692,11 @@ header('Expires: 0');
         stepHtml += '<label>Extractor</label>';
         stepHtml += '<br/>';
         stepHtml += '<span class="step-actions">';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<a href="#" class="step-icon step-edit" data-numeric-id="' + numericId + '" title="Edit" aria-label="Edit">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
         stepHtml += '</svg></a>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<a href="#" class="step-icon step-remove" data-numeric-id="' + numericId + '" title="Remove" aria-label="Remove">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
         stepHtml += '</svg></a>';
@@ -654,11 +721,11 @@ header('Expires: 0');
         stepHtml += '<label>Execution Extractor</label>';
         stepHtml += '<br/>';
         stepHtml += '<span class="step-actions">';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<a href="#" class="step-icon step-edit" data-numeric-id="' + numericId + '" title="Edit" aria-label="Edit">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
         stepHtml += '</svg></a>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<a href="#" class="step-icon step-remove" data-numeric-id="' + numericId + '" title="Remove" aria-label="Remove">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
         stepHtml += '</svg></a>';
@@ -683,11 +750,11 @@ header('Expires: 0');
         stepHtml += '<label>Transformer</label>';
         stepHtml += '<br/>';
         stepHtml += '<span class="step-actions">';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<a href="#" class="step-icon step-edit" data-numeric-id="' + numericId + '" title="Edit" aria-label="Edit">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
         stepHtml += '</svg></a>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<a href="#" class="step-icon step-remove" data-numeric-id="' + numericId + '" title="Remove" aria-label="Remove">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
         stepHtml += '</svg></a>';
@@ -712,11 +779,11 @@ header('Expires: 0');
         stepHtml += '<label>Loader</label>';
         stepHtml += '<br/>';
         stepHtml += '<span class="step-actions">';
-        stepHtml += '<a href="javascript:editStep(' + numericId + ');" class="step-icon" title="Edit" aria-label="Edit">';
+        stepHtml += '<a href="#" class="step-icon step-edit" data-numeric-id="' + numericId + '" title="Edit" aria-label="Edit">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0L15 5.25l3.75 3.75 1.96-1.96z"/>';
         stepHtml += '</svg></a>';
-        stepHtml += '<a href="javascript:remove(' + numericId + ');" class="step-icon" title="Remove" aria-label="Remove">';
+        stepHtml += '<a href="#" class="step-icon step-remove" data-numeric-id="' + numericId + '" title="Remove" aria-label="Remove">';
         stepHtml += '<svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-hidden="true">';
         stepHtml += '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/>';
         stepHtml += '</svg></a>';
@@ -1072,11 +1139,32 @@ $('#convertcase-mode').val(convertCaseModeVal);
                 alert('Select a transformation to load.');
             }
         });
+        $('#run-transformation-btn').on('click', function () {
+            runTransformationSaved();
+        });
+        $('#run-current-btn').on('click', function () {
+            runTransformationCurrent();
+        });
+        $(document).on('click', '.step-edit', function (e) {
+            e.preventDefault();
+            let id = parseInt($(this).data('numericId'), 10);
+            if (!isNaN(id)) editStep(id);
+        });
+        $(document).on('click', '.step-remove', function (e) {
+            e.preventDefault();
+            let id = parseInt($(this).data('numericId'), 10);
+            if (!isNaN(id)) remove(id);
+        });
+        $(document).on('dragstart', '.draggable-item', dragStart);
     }
 
     (function () {
         let diagramContainer = document.getElementById('diagram-container');
-        diagramContainer.addEventListener('mousemove', relativeCoords, false);
+        if (diagramContainer) {
+            diagramContainer.addEventListener('mousemove', relativeCoords, false);
+            diagramContainer.addEventListener('dragover', allowDrop, false);
+            diagramContainer.addEventListener('drop', drop, false);
+        }
 
         initStepEditDialog();
         loadStepsFromApi();
