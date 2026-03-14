@@ -248,6 +248,50 @@ header('Expires: 0');
         return objectName;
     }
 
+    /**
+     * Order step nodes by connection flow (arrows) instead of creation order.
+     * Uses topological sort: start from nodes with no incoming edges, then follow outgoing edges.
+     * Returns array of numericIds in execution order, or null to fall back to numericId sort.
+     */
+    function getOrderedNumericIdsByConnections(nodeIds, connections) {
+        if (!connections || connections.length === 0) {
+            return null;
+        }
+        let inDegree = {};
+        let successors = {};
+        nodeIds.forEach(function (id) {
+            inDegree[id] = 0;
+            successors[id] = [];
+        });
+        connections.forEach(function (conn) {
+            let srcId = (conn.source && conn.source.id) ? conn.source.id : (conn.sourceId || '');
+            let tgtId = (conn.target && conn.target.id) ? conn.target.id : (conn.targetId || '');
+            let srcNum = parseInt(String(srcId).replace(/^flowchartWindow/, ''), 10);
+            let tgtNum = parseInt(String(tgtId).replace(/^flowchartWindow/, ''), 10);
+            if (!isNaN(srcNum) && !isNaN(tgtNum) && nodeIds.indexOf(srcNum) !== -1 && nodeIds.indexOf(tgtNum) !== -1) {
+                successors[srcNum].push(tgtNum);
+                inDegree[tgtNum] = (inDegree[tgtNum] || 0) + 1;
+            }
+        });
+        let queue = nodeIds.filter(function (id) { return inDegree[id] === 0; }).sort(function (a, b) { return a - b; });
+        let order = [];
+        while (queue.length > 0) {
+            let n = queue.shift();
+            order.push(n);
+            (successors[n] || []).forEach(function (s) {
+                inDegree[s]--;
+                if (inDegree[s] === 0) {
+                    queue.push(s);
+                }
+            });
+            queue.sort(function (a, b) { return a - b; });
+        }
+        if (order.length !== nodeIds.length) {
+            return null;
+        }
+        return order;
+    }
+
     function buildStepsPayload() {
         let nodes = [];
 
@@ -284,9 +328,22 @@ header('Expires: 0');
             });
         });
 
-        nodes.sort(function (a, b) {
-            return a.numericId - b.numericId;
-        });
+        let orderedIds = null;
+        let jsp = window.jsp;
+        if (jsp && typeof jsp.getConnections === 'function') {
+            let connections = jsp.getConnections({}, true);
+            let nodeIds = nodes.map(function (n) { return n.numericId; });
+            orderedIds = getOrderedNumericIdsByConnections(nodeIds, connections);
+        }
+        if (orderedIds) {
+            let byId = {};
+            nodes.forEach(function (n) { byId[n.numericId] = n; });
+            nodes = orderedIds.map(function (id) { return byId[id]; }).filter(Boolean);
+        } else {
+            nodes.sort(function (a, b) {
+                return a.numericId - b.numericId;
+            });
+        }
 
         return nodes.map(function (n) {
             return {
