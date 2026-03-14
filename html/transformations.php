@@ -317,6 +317,8 @@ header('Expires: 0');
 
     function buildStepsPayload() {
         let nodes = [];
+        let canvasEl = document.getElementById('canvas');
+        let canvasRect = canvasEl ? canvasEl.getBoundingClientRect() : null;
 
         $('.flowchart-demo .window').each(function () {
             let elementId = this.id || '';
@@ -343,11 +345,19 @@ header('Expires: 0');
                 options: {}
             };
             let coreName = getCoreStepName(stepDef);
+            let x = 0, y = 0;
+            if (canvasRect) {
+                let nodeRect = this.getBoundingClientRect();
+                x = Math.round(nodeRect.left - canvasRect.left);
+                y = Math.round(nodeRect.top - canvasRect.top);
+            }
             nodes.push({
                 numericId: numericId,
                 type: stepDef.type,
                 name: coreName,
-                options: cfg.options || {}
+                options: cfg.options || {},
+                x: x,
+                y: y
             });
         });
 
@@ -369,11 +379,16 @@ header('Expires: 0');
         }
 
         return nodes.map(function (n) {
-            return {
+            let step = {
                 type: n.type,
                 name: n.name,
                 options: n.options
             };
+            if (typeof n.x === 'number' && typeof n.y === 'number') {
+                step.x = n.x;
+                step.y = n.y;
+            }
+            return step;
         });
     }
 
