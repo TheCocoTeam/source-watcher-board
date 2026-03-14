@@ -398,17 +398,29 @@ header('Expires: 0');
             if (data && data.name) msg += ' (' + data.name + ')';
             $('#bottom-container').text(msg).css('color', '');
         }).fail(function (xhr) {
-            let msg = 'Run failed.';
-            if (xhr && xhr.responseText) {
-                try {
-                    let err = JSON.parse(xhr.responseText);
-                    if (err && err.message) msg = err.message;
-                    if (err && err.error) msg += ' ' + err.error;
-                } catch (e) {}
-            }
+            let msg = formatRunError(xhr);
             $('#bottom-container').text(msg).css('color', '#c0392b');
             alert(msg);
         });
+    }
+
+    function formatRunError(xhr) {
+        let msg = 'Run failed.';
+        if (xhr && xhr.responseText) {
+            try {
+                let err = JSON.parse(xhr.responseText);
+                if (err && err.message) msg = err.message;
+                if (err && err.error) {
+                    if (typeof err.stepIndex === 'number' && err.stepName) {
+                        let stepNum = err.stepIndex + 1;
+                        msg = 'Step ' + stepNum + ' (' + err.stepName + ') failed: ' + err.error;
+                    } else {
+                        msg += ' ' + err.error;
+                    }
+                }
+            } catch (e) {}
+        }
+        return msg;
     }
 
     function runTransformationCurrent() {
@@ -430,14 +442,7 @@ header('Expires: 0');
             let msg = (data && data.message) ? data.message : 'Transformation ran successfully.';
             $('#bottom-container').text(msg).css('color', '');
         }).fail(function (xhr) {
-            let msg = 'Run failed.';
-            if (xhr && xhr.responseText) {
-                try {
-                    let err = JSON.parse(xhr.responseText);
-                    if (err && err.message) msg = err.message;
-                    if (err && err.error) msg += ' ' + err.error;
-                } catch (e) {}
-            }
+            let msg = formatRunError(xhr);
             $('#bottom-container').text(msg).css('color', '#c0392b');
             alert(msg);
         });
