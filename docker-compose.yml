@@ -1,19 +1,22 @@
+# Board UI (PHP 8.4 Apache). Run from this directory: docker compose up -d --build web-server
+# Board: http://localhost:8080 — API typically on 8181 (see dev-env README).
 version: "3.7"
 services:
   web-server:
     build:
-      dockerfile: php.Dockerfile
       context: .
+      dockerfile: Dockerfile
+    image: source-watcher-board:latest
     restart: always
     volumes:
       - "./:/var/www/"
       - "./docker/php/conf.d/error_reporting.ini:/usr/local/etc/php/conf.d/error_reporting.ini"
       - "./docker/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
     ports:
-      - "8181:80"
+      - "8080:80"
 
   mysql-server:
-    image: mysql:8.0.19
+    image: mysql:8.0
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: secret
@@ -21,7 +24,7 @@ services:
       - mysql-data:/var/lib/mysql
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:5.0.1
+    image: phpmyadmin/phpmyadmin:5
     restart: always
     environment:
       PMA_HOST: mysql-server

@@ -25,7 +25,16 @@ Point the document root at the `html/` directory of this project. The entry poin
 
 ### Docker
 
-A `php.Dockerfile` is provided that builds a PHP 7.4 Apache image with common extensions. It does not include the API or Core; run those separately (e.g. API on port 8181) and configure the board to use that API URL.
+A `Dockerfile` builds a PHP 8.4 Apache image (aligned with Core/API PHP 8.4). The board is served on **port 8080** so the API can use 8181. It does not include the API or Core; run those separately and configure the board’s API base URL (see below).
+
+From the **board** directory:
+
+```bash
+docker compose up -d --build web-server
+```
+
+Board: http://localhost:8080/  
+For the full command list and context, see the [dev-env README](../README.md) (section “Running the board”).
 
 ## API URL configuration
 
@@ -49,7 +58,7 @@ Cookies for `access_token` and `refresh_token` are set by the API for `localhost
   - `login.php` — Login form; POSTs to the API credentials endpoint.
   - `transformations.php` — Canvas UI (jsPlumb) for building pipelines.
 - `html/assets/` — CSS and JavaScript (jQuery, jQuery UI, jsPlumb, app and view scripts).
-- `php.Dockerfile` — Docker image for serving the board (PHP 7.4 Apache).
+- `Dockerfile` — Docker image for serving the board (PHP 8.4 Apache).
 
 ## Current limitations
 

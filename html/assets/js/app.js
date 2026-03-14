@@ -1,5 +1,39 @@
 let instance = undefined;
 
+/** Custom labels for connections (connection.id -> string). Empty string = use default "source → target". */
+let connectionLabels = {};
+
+function getConnectionNodeIds(connection) {
+    var srcId = (connection.source && connection.source.id) ? connection.source.id : '';
+    var tgtId = (connection.target && connection.target.id) ? connection.target.id : '';
+    var srcNum = srcId.replace(/^flowchartWindow/, '');
+    var tgtNum = tgtId.replace(/^flowchartWindow/, '');
+    return { srcNum: srcNum, tgtNum: tgtNum };
+}
+
+function getConnectionDefaultLabel(connection) {
+    var ids = getConnectionNodeIds(connection);
+    if (ids.srcNum && ids.tgtNum) {
+        return ids.srcNum + ' \u2192 ' + ids.tgtNum;
+    }
+    return (connection.sourceId || '') + '-' + (connection.targetId || '');
+}
+
+function getConnectionDisplayLabel(connection) {
+    var custom = connectionLabels[connection.id];
+    if (custom !== undefined && custom !== '') {
+        return custom;
+    }
+    return getConnectionDefaultLabel(connection);
+}
+
+function setConnectionLabel(connection, label) {
+    var overlay = connection.getOverlay('label');
+    if (overlay) {
+        overlay.setLabel(label || getConnectionDefaultLabel(connection));
+    }
+}
+
 jsPlumb.ready(function () {
     instance = window.jsp = jsPlumb.getInstance({
         DragOptions: { cursor: 'pointer', zIndex: 2000 },
@@ -9,22 +43,12 @@ jsPlumb.ready(function () {
                 visible: true,
                 width: 11,
                 length: 11,
-                id: 'ARROW',
-                events: {
-                    click: function () {
-                        alert('you clicked on the arrow overlay');
-                    }
-                }
+                id: 'ARROW'
             }],
             ['Label', {
-                location: 0.1,
+                location: 0.5,
                 id: 'label',
-                cssClass: 'aLabel',
-                events: {
-                    tap: function () {
-                        alert('hey');
-                    }
-                }
+                cssClass: 'aLabel'
             }]
         ],
         Container: 'canvas'
@@ -97,8 +121,7 @@ jsPlumb.ready(function () {
             ]
         },
         init = function (connection) {
-            console.dir(connection);
-            connection.getOverlay('label').setLabel(connection.sourceId.substring(15) + '-' + connection.targetId.substring(15));
+            setConnectionLabel(connection, getConnectionDisplayLabel(connection));
         };
 
     instance._addEndpoints = function (toId, sourceAnchors, targetAnchors) {
@@ -131,7 +154,14 @@ jsPlumb.ready(function () {
         //instance.connect({ uuids: ['Window2RightMiddle', 'Window3LeftMiddle'], detachable: true, editable: true });
 
         instance.bind('click', function (connection, originalEvent) {
-            //connection.toggleType('basic');
+            if (!connection || !connection.getOverlay('label')) return;
+            var current = connectionLabels[connection.id];
+            if (current === undefined) current = '';
+            var defaultLabel = getConnectionDefaultLabel(connection);
+            var newLabel = window.prompt('Connection label (optional). Leave empty for default "' + defaultLabel + '".', current);
+            if (newLabel === null) return;
+            connectionLabels[connection.id] = newLabel.trim();
+            setConnectionLabel(connection, connectionLabels[connection.id] || null);
         });
 
         instance.bind('connectionDrag', function (connection) {
