@@ -424,6 +424,10 @@ header('Expires: 0');
             alert('Select a transformation to run.');
             return;
         }
+        if (!validateGraphBeforeRun()) {
+            return;
+        }
+        let startedAt = (window.performance && performance.now) ? performance.now() : Date.now();
         let token = typeof getStoredAccessToken === 'function' ? getStoredAccessToken() : (sessionStorage.getItem('access_token') || localStorage.getItem('access_token'));
         $.ajax({
             url: TRANSFORMATION_RUN_API_URL,
@@ -434,9 +438,9 @@ header('Expires: 0');
             xhrFields: { withCredentials: true },
             headers: token ? { 'x-access-token': token } : {}
         }).done(function (data) {
-            let msg = (data && data.message) ? data.message : 'Transformation ran successfully.';
-            if (data && data.name) msg += ' (' + data.name + ')';
-            $('#bottom-container').text(msg).css('color', '');
+            let endedAt = (window.performance && performance.now) ? performance.now() : Date.now();
+            let summary = buildRunSuccessMessage(data, startedAt, endedAt);
+            $('#bottom-container').text(summary).css('color', '');
         }).fail(function (xhr) {
             let msg = formatRunError(xhr);
             $('#bottom-container').text(msg).css('color', '#c0392b');
@@ -469,6 +473,10 @@ header('Expires: 0');
             alert('There are no steps on the canvas to run.');
             return;
         }
+        if (!validateGraphBeforeRun()) {
+            return;
+        }
+        let startedAt = (window.performance && performance.now) ? performance.now() : Date.now();
         let token = typeof getStoredAccessToken === 'function' ? getStoredAccessToken() : (sessionStorage.getItem('access_token') || localStorage.getItem('access_token'));
         $.ajax({
             url: TRANSFORMATION_RUN_API_URL,
@@ -479,13 +487,125 @@ header('Expires: 0');
             xhrFields: { withCredentials: true },
             headers: token ? { 'x-access-token': token } : {}
         }).done(function (data) {
-            let msg = (data && data.message) ? data.message : 'Transformation ran successfully.';
-            $('#bottom-container').text(msg).css('color', '');
+            let endedAt = (window.performance && performance.now) ? performance.now() : Date.now();
+            let summary = buildRunSuccessMessage(data, startedAt, endedAt);
+            $('#bottom-container').text(summary).css('color', '');
         }).fail(function (xhr) {
             let msg = formatRunError(xhr);
             $('#bottom-container').text(msg).css('color', '#c0392b');
             alert(msg);
         });
+    }
+
+    function validateGraphBeforeRun() {
+        let nodes = [];
+        $('.flowchart-demo .window').each(function () {
+            let elementId = this.id || '';
+            if (!elementId || elementId.indexOf('flowchartWindow') !== 0) return;
+            let numericId = parseInt(elementId.replace('flowchartWindow', ''), 10);
+            if (isNaN(numericId)) return;
+            let stepId = $(this).data('step-id');
+            if (!stepId) return;
+            let stepDef = steps.get(stepId);
+            if (!stepDef) return;
+            nodes.push({ numericId: numericId, type: stepDef.type });
+        });
+        if (!nodes.length) {
+            let msg = 'Cannot run: there are no steps on the canvas.';
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+            return false;
+        }
+        let hasExtractor = nodes.some(function (n) { return n.type === STEP_TYPE_EXTRACTOR || n.type === STEP_TYPE_EXECUTION_EXTRACTOR; });
+        let hasLoader = nodes.some(function (n) { return n.type === STEP_TYPE_LOADER; });
+        if (!hasExtractor || !hasLoader) {
+            let msg = 'Cannot run: you need at least one extractor and one loader.';
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+            return false;
+        }
+        let jsp = window.jsp;
+        if (!jsp || typeof jsp.getConnections !== 'function') {
+            return true;
+        }
+        let connections = jsp.getConnections({}, true) || [];
+        if (!connections.length) {
+            let msg = 'Cannot run: no connections between steps. Connect steps before running.';
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+            return false;
+        }
+        let nodeIds = nodes.map(function (n) { return n.numericId; });
+        let adj = {};
+        nodeIds.forEach(function (id) { adj[id] = []; });
+        connections.forEach(function (conn) {
+            let srcId = (conn.source && conn.source.id) ? conn.source.id : (conn.sourceId || '');
+            let tgtId = (conn.target && conn.target.id) ? conn.target.id : (conn.targetId || '');
+            let srcNum = parseInt(String(srcId).replace(/^flowchartWindow/, ''), 10);
+            let tgtNum = parseInt(String(tgtId).replace(/^flowchartWindow/, ''), 10);
+            if (!isNaN(srcNum) && !isNaN(tgtNum) && adj[srcNum]) {
+                adj[srcNum].push(tgtNum);
+            }
+        });
+        let extractorIds = nodes.filter(function (n) {
+            return n.type === STEP_TYPE_EXTRACTOR || n.type === STEP_TYPE_EXECUTION_EXTRACTOR;
+        }).map(function (n) { return n.numericId; });
+        let loaderIds = nodes.filter(function (n) {
+            return n.type === STEP_TYPE_LOADER;
+        }).map(function (n) { return n.numericId; });
+        let visited = {};
+        let queue = [];
+        extractorIds.forEach(function (id) {
+            visited[id] = true;
+            queue.push(id);
+        });
+        let reachableLoader = false;
+        while (queue.length > 0 && !reachableLoader) {
+            let current = queue.shift();
+            if (loaderIds.indexOf(current) !== -1) {
+                reachableLoader = true;
+                break;
+            }
+            (adj[current] || []).forEach(function (next) {
+                if (!visited[next]) {
+                    visited[next] = true;
+                    queue.push(next);
+                }
+            });
+        }
+        if (!reachableLoader) {
+            let msg = 'Cannot run: no path from any extractor to any loader. Connect steps before running.';
+            $('#bottom-container').text(msg).css('color', '#c0392b');
+            alert(msg);
+            return false;
+        }
+        return true;
+    }
+
+    function buildRunSuccessMessage(data, startedAt, endedAt) {
+        let baseMsg = (data && data.message) ? data.message : 'Transformation ran successfully.';
+        if (data && data.name) {
+            baseMsg += ' (' + data.name + ')';
+        }
+        let elapsedMs = Math.max(0, (endedAt || 0) - (startedAt || 0));
+        let elapsedSeconds = elapsedMs / 1000;
+        let duration;
+        if (elapsedSeconds < 60) {
+            duration = elapsedSeconds.toFixed(2) + 's';
+        } else {
+            let minutes = Math.floor(elapsedSeconds / 60);
+            let seconds = Math.round(elapsedSeconds - minutes * 60);
+            duration = minutes + 'm ' + seconds + 's';
+        }
+        let now = new Date();
+        let year = now.getUTCFullYear();
+        let month = String(now.getUTCMonth() + 1).padStart(2, '0');
+        let day = String(now.getUTCDate()).padStart(2, '0');
+        let hour = String(now.getUTCHours()).padStart(2, '0');
+        let minute = String(now.getUTCMinutes()).padStart(2, '0');
+        let second = String(now.getUTCSeconds()).padStart(2, '0');
+        let completedAt = year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second + ' UTC';
+        return baseMsg + ' • Completed at ' + completedAt + ' • Execution took ' + duration;
     }
 
     /**
