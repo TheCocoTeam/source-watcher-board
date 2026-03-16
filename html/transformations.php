@@ -31,6 +31,7 @@ header('Expires: 0');
     <div id="rows-container">
         <div id="top-menu-container">
             <span class="top-menu-title">Source Watcher</span>
+            <button type="button" id="new-transformation-btn" class="top-menu-button">New</button>
             <label for="saved-transformations-select" class="top-menu-label">Transformations:</label>
             <select id="saved-transformations-select" class="top-menu-select" title="List of saved transformations">
                 <option value="">—</option>
@@ -341,6 +342,13 @@ header('Expires: 0');
         });
         nodeConfig = {};
         flowchartCount = 0;
+    }
+
+    function newTransformation() {
+        clearCanvas();
+        loadedTransformationName = '';
+        $('#saved-transformations-select').val('');
+        $('#bottom-container').text('Ready for a new transformation').css('color', '');
     }
 
     /** Add a single node at (x, y) with given stepId, stepType, and options (for nodeConfig). */
@@ -1367,6 +1375,9 @@ $('#convertcase-mode').val(convertCaseModeVal);
         });
         $('#db-driver').on('change', function () {
             toggleDatabaseDriverFields($(this).val());
+        });
+        $('#new-transformation-btn').on('click', function () {
+            newTransformation();
         });
         $('#save-transformation-btn').on('click', function () {
             saveTransformation();
