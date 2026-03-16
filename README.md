@@ -1,11 +1,11 @@
 # Source Watcher Board
 
-Web UI for the [Source Watcher](https://github.com/TheCocoTeam/source-watcher) project. It provides a login screen and a **transformations** canvas where you design ETL pipelines by dragging and dropping steps (extractors, transformers, loaders) and connecting them. The board talks to [Source Watcher API](../source-watcher-api) for authentication and will use it for saving/loading pipelines when that is implemented.
+Web UI for the [Source Watcher](https://github.com/TheCocoTeam/source-watcher-dev-env) project. It provides a login screen and a **transformations** canvas where you design ETL pipelines by dragging and dropping steps (extractors, transformers, loaders) and connecting them. The board talks to [Source Watcher API](https://github.com/TheCocoTeam/source-watcher-api) for authentication and will use it for saving/loading pipelines when that is implemented.
 
 ## Requirements
 
 - A web server (e.g. Apache, nginx, or PHP built-in server) to serve the files under `html/`.
-- [Source Watcher API](../source-watcher-api) running and reachable (e.g. at `http://localhost:8181/api/`). The board’s JavaScript is configured to use that base URL for login, JWT validation, and refresh.
+- [Source Watcher API](https://github.com/TheCocoTeam/source-watcher-api) running and reachable (e.g. at `http://localhost:8181/api/`). The board’s JavaScript is configured to use that base URL for login, JWT validation, and refresh.
 
 ## Running the board
 
@@ -34,7 +34,7 @@ docker compose up -d --build web-server
 ```
 
 Board: http://localhost:8080/  
-For the full command list and context, see the [dev-env README](../README.md) (section “Running the board”).
+For the full command list and context, see the [dev-env README](https://github.com/TheCocoTeam/source-watcher-dev-env#readme) (section “Running the board”).
 
 ## API URL configuration
 
