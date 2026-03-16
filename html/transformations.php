@@ -284,10 +284,14 @@ header('Expires: 0');
         }).done(function (data) {
             let names = (data && Array.isArray(data.names)) ? data.names : [];
             let $sel = $('#saved-transformations-select');
+            let current = $sel.val() || loadedTransformationName || '';
             $sel.find('option').not(':first').remove();
             names.forEach(function (name) {
                 $sel.append($('<option>', { value: name }).text(name));
             });
+            if (current && names.indexOf(current) !== -1) {
+                $sel.val(current);
+            }
         }).fail(function () {
             $('#saved-transformations-select').find('option').not(':first').remove();
         });
@@ -758,6 +762,7 @@ header('Expires: 0');
             let msg = 'Transformation saved.';
             if (data && data.name) {
                 msg = 'Transformation "' + data.name + '" saved.';
+                loadedTransformationName = data.name;
             }
             alert(msg);
             loadSavedTransformationsList();
