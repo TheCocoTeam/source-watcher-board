@@ -103,6 +103,19 @@ header('Expires: 0');
                 One mapping per line: <code>columnName: jsonPath</code>. Leave empty to use the root JSON as rows. Example: <code>color: colors.*.color</code>
             </p>
         </div>
+        <div id="edit-txt-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="txt-file-path">File path <span class="required">*</span></label>
+                <input type="text" id="txt-file-path" name="txtFilePath" placeholder="/path/to/file.txt or https://...">
+            </div>
+            <div class="form-group">
+                <label for="txt-column">Column name for each line</label>
+                <input type="text" id="txt-column" name="txtColumn" value="line" placeholder="line">
+            </div>
+            <p class="edit-hint">
+                Each line of the file becomes one row. The column name is the key for the line content (default: <code>line</code>).
+            </p>
+        </div>
         <div id="edit-convertcase-fields" class="edit-step-fields" style="display: none;">
             <div class="form-group">
                 <label for="convertcase-columns">Columns to convert <span class="required">*</span></label>
@@ -248,6 +261,7 @@ header('Expires: 0');
 
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_JSON_EXTRACTOR = 'JsonExtractor';
+    const STEP_OBJECT_TXT_EXTRACTOR = 'TxtExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
     const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
     const STEP_OBJECT_DATABASE_LOADER = 'DatabaseLoader';
@@ -1014,6 +1028,7 @@ header('Expires: 0');
         }
         $('#edit-csv-fields').hide();
         $('#edit-json-fields').hide();
+        $('#edit-txt-fields').hide();
         $('#edit-convertcase-fields').hide();
         $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
@@ -1041,6 +1056,14 @@ header('Expires: 0');
             }
             $('#json-columns').val(colLines.join('\n'));
             $('#step-edit-modal').dialog('option', 'title', 'Edit JSON Extractor');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_TXT_EXTRACTOR) {
+            $('#edit-txt-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            $('#txt-file-path').val(opts.filePath || '');
+            $('#txt-column').val(opts.column !== undefined && opts.column !== '' ? opts.column : 'line');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Txt Extractor');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
             $('#edit-convertcase-fields').show();
@@ -1158,6 +1181,22 @@ $('#convertcase-mode').val(convertCaseModeVal);
                 stepType: step.type,
                 object: step.object,
                 options: jsonOpts
+            };
+        } else if (step.object === STEP_OBJECT_TXT_EXTRACTOR) {
+            let filePath = $('#txt-file-path').val().trim();
+            if (!filePath) {
+                alert('File path is required.');
+                return;
+            }
+            let column = $('#txt-column').val().trim() || 'line';
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: {
+                    filePath: filePath,
+                    column: column
+                }
             };
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
             let columnsStr = $('#convertcase-columns').val().trim();
