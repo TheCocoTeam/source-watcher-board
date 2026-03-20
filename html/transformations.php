@@ -176,7 +176,7 @@ header('Expires: 0');
             </div>
             <div id="db-sqlite-fields" style="display: none;">
                 <div class="form-group">
-                    <label for="db-path">Path to database file <span class="required">*</span></label>
+                    <label for="db-path">Path to database file (local path or http(s) URL) <span class="required">*</span></label>
                     <input type="text" id="db-path" name="dbPath" placeholder="/path/to/database.sqlite">
                 </div>
                 <div class="form-group">
@@ -223,7 +223,7 @@ header('Expires: 0');
             </div>
             <div id="db-extractor-sqlite-fields" style="display: none;">
                 <div class="form-group">
-                    <label for="db-extractor-path">Path to database file <span class="required">*</span></label>
+                    <label for="db-extractor-path">Path to database file (local path or http(s) URL) <span class="required">*</span></label>
                     <input type="text" id="db-extractor-path" name="dbExtractorPath" placeholder="/path/to/database.sqlite">
                 </div>
                 <div class="form-group">
