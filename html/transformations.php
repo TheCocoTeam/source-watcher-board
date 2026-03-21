@@ -176,7 +176,7 @@ header('Expires: 0');
             </div>
             <div id="db-sqlite-fields" style="display: none;">
                 <div class="form-group">
-                    <label for="db-path">Path to database file <span class="required">*</span></label>
+                    <label for="db-path">Path to database file (local path or http(s) URL) <span class="required">*</span></label>
                     <input type="text" id="db-path" name="dbPath" placeholder="/path/to/database.sqlite">
                 </div>
                 <div class="form-group">
@@ -189,6 +189,56 @@ header('Expires: 0');
                 <label for="db-table">Table <span class="required">*</span></label>
                 <input type="text" id="db-table" name="dbTable" placeholder="people">
             </div>
+        </div>
+        <div id="edit-db-extractor-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="db-extractor-driver">Driver</label>
+                <select id="db-extractor-driver" name="dbExtractorDriver">
+                    <option value="pdo_mysql">MySQL</option>
+                    <option value="pdo_pgsql">PostgreSQL</option>
+                    <option value="pdo_sqlite">SQLite</option>
+                </select>
+            </div>
+            <div id="db-extractor-server-fields">
+                <div class="form-group">
+                    <label for="db-extractor-host">Host <span class="required">*</span></label>
+                    <input type="text" id="db-extractor-host" name="dbExtractorHost" placeholder="localhost">
+                </div>
+                <div class="form-group">
+                    <label for="db-extractor-port">Port</label>
+                    <input type="number" id="db-extractor-port" name="dbExtractorPort" value="3306" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label for="db-extractor-database">Database <span class="required">*</span></label>
+                    <input type="text" id="db-extractor-database" name="dbExtractorDatabase" placeholder="mydb">
+                </div>
+                <div class="form-group">
+                    <label for="db-extractor-user">User <span class="required">*</span></label>
+                    <input type="text" id="db-extractor-user" name="dbExtractorUser" placeholder="root">
+                </div>
+                <div class="form-group">
+                    <label for="db-extractor-password">Password</label>
+                    <input type="password" id="db-extractor-password" name="dbExtractorPassword" placeholder="(optional for some setups)" autocomplete="off">
+                </div>
+            </div>
+            <div id="db-extractor-sqlite-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="db-extractor-path">Path to database file (local path or http(s) URL) <span class="required">*</span></label>
+                    <input type="text" id="db-extractor-path" name="dbExtractorPath" placeholder="/path/to/database.sqlite">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="db-extractor-memory" name="dbExtractorMemory" value="1"> In-memory database
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="db-extractor-query">SQL query <span class="required">*</span></label>
+                <textarea id="db-extractor-query" name="dbExtractorQuery" rows="4" placeholder="SELECT * FROM some_table"></textarea>
+            </div>
+            <p class="edit-hint">
+                The Database extractor runs this SQL against the configured connection and turns each result row into a pipeline row.
+            </p>
         </div>
         <div id="edit-other-fields" class="edit-step-fields" style="display: none;">
             <p class="edit-not-implemented">Edit not yet implemented for this step type.</p>
@@ -262,6 +312,7 @@ header('Expires: 0');
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_JSON_EXTRACTOR = 'JsonExtractor';
     const STEP_OBJECT_TXT_EXTRACTOR = 'TxtExtractor';
+    const STEP_OBJECT_DATABASE_EXTRACTOR = 'DatabaseExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
     const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
     const STEP_OBJECT_DATABASE_LOADER = 'DatabaseLoader';
@@ -1032,6 +1083,7 @@ header('Expires: 0');
         $('#edit-convertcase-fields').hide();
         $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
+        $('#edit-db-extractor-fields').hide();
         $('#edit-other-fields').hide();
         if (step.object === STEP_OBJECT_CSV_EXTRACTOR) {
             $('#edit-csv-fields').show();
@@ -1096,6 +1148,23 @@ $('#convertcase-mode').val(convertCaseModeVal);
             }
             $('#rename-mappings').val(mappings.join('\n'));
             $('#step-edit-modal').dialog('option', 'title', 'Edit Rename Columns Transformer');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_DATABASE_EXTRACTOR) {
+            $('#edit-db-extractor-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            let driver = opts.driver || 'pdo_mysql';
+            $('#db-extractor-driver').val(driver);
+            toggleDatabaseExtractorDriverFields(driver);
+            $('#db-extractor-host').val(opts.host || 'localhost');
+            $('#db-extractor-port').val(opts.port !== undefined ? opts.port : (driver === 'pdo_pgsql' ? 5432 : 3306));
+            $('#db-extractor-database').val(opts.database || opts.dbName || '');
+            $('#db-extractor-user').val(opts.user || '');
+            $('#db-extractor-password').val(opts.password || '');
+            $('#db-extractor-path').val(opts.path || '');
+            $('#db-extractor-memory').prop('checked', !!opts.memory);
+            $('#db-extractor-query').val(opts.query || '');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Database Extractor');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_DATABASE_LOADER) {
             $('#edit-database-fields').show();
@@ -1290,6 +1359,45 @@ $('#convertcase-mode').val(convertCaseModeVal);
                 object: step.object,
                 options: options
             };
+        } else if (step.object === STEP_OBJECT_DATABASE_EXTRACTOR) {
+            let driver = $('#db-extractor-driver').val();
+            let options = { driver: driver };
+            if (driver === 'pdo_sqlite') {
+                let memory = $('#db-extractor-memory').prop('checked');
+                let path = $('#db-extractor-path').val().trim();
+                if (!memory && !path) {
+                    alert('Path is required (or check In-memory database).');
+                    return;
+                }
+                options.path = memory ? '' : path;
+                options.memory = memory;
+            } else {
+                let host = $('#db-extractor-host').val().trim();
+                let database = $('#db-extractor-database').val().trim();
+                let user = $('#db-extractor-user').val().trim();
+                if (!host || !database || !user) {
+                    alert('Host, Database, and User are required.');
+                    return;
+                }
+                let port = parseInt($('#db-extractor-port').val(), 10) || (driver === 'pdo_pgsql' ? 5432 : 3306);
+                options.host = host;
+                options.port = port;
+                options.database = database;
+                options.user = user;
+                options.password = $('#db-extractor-password').val() || '';
+            }
+            let query = $('#db-extractor-query').val().trim();
+            if (!query) {
+                alert('SQL query is required.');
+                return;
+            }
+            options.query = query;
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: options
+            };
         } else {
             $('#step-edit-modal').dialog('close');
             return;
@@ -1398,6 +1506,17 @@ $('#convertcase-mode').val(convertCaseModeVal);
         }
     }
 
+    function toggleDatabaseExtractorDriverFields(driver) {
+        if (driver === 'pdo_sqlite') {
+            $('#db-extractor-server-fields').hide();
+            $('#db-extractor-sqlite-fields').show();
+        } else {
+            $('#db-extractor-server-fields').show();
+            $('#db-extractor-sqlite-fields').hide();
+            $('#db-extractor-port').val(driver === 'pdo_pgsql' ? 5432 : 3306);
+        }
+    }
+
     function initStepEditDialog() {
         $('#step-edit-modal').dialog({
             autoOpen: false,
@@ -1414,6 +1533,9 @@ $('#convertcase-mode').val(convertCaseModeVal);
         });
         $('#db-driver').on('change', function () {
             toggleDatabaseDriverFields($(this).val());
+        });
+        $('#db-extractor-driver').on('change', function () {
+            toggleDatabaseExtractorDriverFields($(this).val());
         });
         $('#new-transformation-btn').on('click', function () {
             newTransformation();
