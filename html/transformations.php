@@ -467,7 +467,7 @@ header('Expires: 0');
         return objectName;
     }
 
-    /** Find step id from steps Map by type and core name (as stored in .swt). */
+    /** Find step id from steps Map by type and core name (as stored in pipeline .json files). */
     function getStepIdByTypeAndName(type, name) {
         let nameStr = (name || '').toString();
         for (let [stepId, step] of steps) {
