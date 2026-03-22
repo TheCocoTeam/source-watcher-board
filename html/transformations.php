@@ -240,6 +240,91 @@ header('Expires: 0');
                 The Database extractor runs this SQL against the configured connection and turns each result row into a pipeline row.
             </p>
         </div>
+        <div id="edit-find-missing-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="find-missing-filter-field">Sequence column name <span class="required">*</span></label>
+                <input type="text" id="find-missing-filter-field" name="findMissingFilterField" placeholder="id">
+            </div>
+            <p class="edit-hint">
+                The numeric column to scan for gaps. The extractor reads all values from the previous extractor's result,
+                sorts them, and outputs any integers missing between the min and max.
+            </p>
+        </div>
+        <div id="edit-guess-gender-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="guess-gender-first-name-field">First name column <span class="required">*</span></label>
+                <input type="text" id="guess-gender-first-name-field" name="guessGenderFirstNameField" placeholder="first_name">
+            </div>
+            <div class="form-group">
+                <label for="guess-gender-gender-field">Output gender column</label>
+                <input type="text" id="guess-gender-gender-field" name="guessGenderGenderField" placeholder="gender">
+            </div>
+            <div class="form-group">
+                <label for="guess-gender-country">Country (name dictionary)</label>
+                <select id="guess-gender-country" name="guessGenderCountry">
+                    <option value="usa">USA</option>
+                    <option value="great_britain">Great Britain</option>
+                    <option value="ireland">Ireland</option>
+                    <option value="italy">Italy</option>
+                    <option value="malta">Malta</option>
+                    <option value="portugal">Portugal</option>
+                    <option value="spain">Spain</option>
+                    <option value="france">France</option>
+                    <option value="belgium">Belgium</option>
+                    <option value="luxembourg">Luxembourg</option>
+                    <option value="the_netherlands">The Netherlands</option>
+                    <option value="east_frisia">East Frisia</option>
+                    <option value="germany">Germany</option>
+                    <option value="austria">Austria</option>
+                    <option value="swiss">Switzerland</option>
+                    <option value="iceland">Iceland</option>
+                    <option value="denmark">Denmark</option>
+                    <option value="norway">Norway</option>
+                    <option value="sweden">Sweden</option>
+                    <option value="finland">Finland</option>
+                    <option value="estonia">Estonia</option>
+                    <option value="latvia">Latvia</option>
+                    <option value="lithuania">Lithuania</option>
+                    <option value="poland">Poland</option>
+                    <option value="czech_republic">Czech Republic</option>
+                    <option value="slovakia">Slovakia</option>
+                    <option value="hungary">Hungary</option>
+                    <option value="romania">Romania</option>
+                    <option value="bulgaria">Bulgaria</option>
+                    <option value="bosnia_and_herzegovina">Bosnia and Herzegovina</option>
+                    <option value="croatia">Croatia</option>
+                    <option value="kosovo">Kosovo</option>
+                    <option value="north_macedonia">North Macedonia</option>
+                    <option value="montenegro">Montenegro</option>
+                    <option value="serbia">Serbia</option>
+                    <option value="slovenia">Slovenia</option>
+                    <option value="albania">Albania</option>
+                    <option value="greece">Greece</option>
+                    <option value="russia">Russia</option>
+                    <option value="belarus">Belarus</option>
+                    <option value="moldova">Moldova</option>
+                    <option value="ukraine">Ukraine</option>
+                    <option value="armenia">Armenia</option>
+                    <option value="azerbaijan">Azerbaijan</option>
+                    <option value="georgia">Georgia</option>
+                    <option value="kazakhstan">Kazakhstan</option>
+                    <option value="turkey">Turkey</option>
+                    <option value="arabia">Arabia</option>
+                    <option value="iran">Iran</option>
+                    <option value="israel">Israel</option>
+                    <option value="china">China</option>
+                    <option value="india">India</option>
+                    <option value="japan">Japan</option>
+                    <option value="korea">Korea</option>
+                    <option value="vietnam">Vietnam</option>
+                    <option value="other_countries">Other countries</option>
+                </select>
+            </div>
+            <p class="edit-hint">
+                Reads the first-name column, guesses gender using a name dictionary, and writes the result to the gender column.
+                Only rows with an empty gender column are updated.
+            </p>
+        </div>
         <div id="edit-other-fields" class="edit-step-fields" style="display: none;">
             <p class="edit-not-implemented">Edit not yet implemented for this step type.</p>
         </div>
@@ -315,6 +400,8 @@ header('Expires: 0');
     const STEP_OBJECT_DATABASE_EXTRACTOR = 'DatabaseExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
     const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
+    const STEP_OBJECT_GUESS_GENDER_TRANSFORMER = 'GuessGenderTransformer';
+    const STEP_OBJECT_FIND_MISSING_EXTRACTOR = 'FindMissingFromSequenceExtractor';
     const STEP_OBJECT_DATABASE_LOADER = 'DatabaseLoader';
 
     function loadStepsFromApi() {
@@ -1084,6 +1171,8 @@ header('Expires: 0');
         $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
         $('#edit-db-extractor-fields').hide();
+        $('#edit-find-missing-fields').hide();
+        $('#edit-guess-gender-fields').hide();
         $('#edit-other-fields').hide();
         if (step.object === STEP_OBJECT_CSV_EXTRACTOR) {
             $('#edit-csv-fields').show();
@@ -1182,6 +1271,22 @@ $('#convertcase-mode').val(convertCaseModeVal);
             $('#db-path').val(opts.path || '');
             $('#db-memory').prop('checked', !!opts.memory);
             $('#step-edit-modal').dialog('option', 'title', 'Edit Database Loader');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_FIND_MISSING_EXTRACTOR) {
+            $('#edit-find-missing-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            $('#find-missing-filter-field').val(opts.filterField || 'id');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Find Missing From Sequence');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_GUESS_GENDER_TRANSFORMER) {
+            $('#edit-guess-gender-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            $('#guess-gender-first-name-field').val(opts.firstNameField || 'first_name');
+            $('#guess-gender-gender-field').val(opts.genderField || 'gender');
+            $('#guess-gender-country').val(opts.country || 'usa');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Guess Gender Transformer');
             $('#step-edit-modal').dialog('open');
         } else {
             $('#edit-other-fields').show();
@@ -1397,6 +1502,32 @@ $('#convertcase-mode').val(convertCaseModeVal);
                 stepType: step.type,
                 object: step.object,
                 options: options
+            };
+        } else if (step.object === STEP_OBJECT_FIND_MISSING_EXTRACTOR) {
+            let filterField = $('#find-missing-filter-field').val().trim();
+            if (!filterField) {
+                alert('Sequence column name is required.');
+                return;
+            }
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: { filterField: filterField }
+            };
+        } else if (step.object === STEP_OBJECT_GUESS_GENDER_TRANSFORMER) {
+            let firstNameField = $('#guess-gender-first-name-field').val().trim();
+            if (!firstNameField) {
+                alert('First name column is required.');
+                return;
+            }
+            let genderField = $('#guess-gender-gender-field').val().trim() || 'gender';
+            let country = $('#guess-gender-country').val() || 'usa';
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: { firstNameField: firstNameField, genderField: genderField, country: country }
             };
         } else {
             $('#step-edit-modal').dialog('close');
