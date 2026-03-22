@@ -116,6 +116,32 @@ header('Expires: 0');
                 Each line of the file becomes one row. The column name is the key for the line content (default: <code>line</code>).
             </p>
         </div>
+        <div id="edit-tesseract-ocr-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="tesseract-ocr-file-path">Image file path <span class="required">*</span></label>
+                <input type="text" id="tesseract-ocr-file-path" name="tesseractOcrFilePath" placeholder="/path/to/image.png">
+            </div>
+            <div class="form-group">
+                <label for="tesseract-ocr-column">Column name for each text line</label>
+                <input type="text" id="tesseract-ocr-column" name="tesseractOcrColumn" value="text" placeholder="text">
+            </div>
+            <div class="form-group">
+                <label for="tesseract-ocr-language">Language</label>
+                <select id="tesseract-ocr-language" name="tesseractOcrLanguage">
+                    <option value="eng">English (eng)</option>
+                    <option value="spa">Spanish (spa)</option>
+                    <option value="fra">French (fra)</option>
+                    <option value="deu">German (deu)</option>
+                    <option value="ita">Italian (ita)</option>
+                    <option value="por">Portuguese (por)</option>
+                    <option value="chi_sim">Chinese Simplified (chi_sim)</option>
+                    <option value="jpn">Japanese (jpn)</option>
+                </select>
+            </div>
+            <p class="edit-hint">
+                Runs Tesseract OCR on the image. Each recognized text line becomes one row. Supported formats: PNG, JPEG, TIFF, BMP, GIF.
+            </p>
+        </div>
         <div id="edit-convertcase-fields" class="edit-step-fields" style="display: none;">
             <div class="form-group">
                 <label for="convertcase-columns">Columns to convert <span class="required">*</span></label>
@@ -397,6 +423,7 @@ header('Expires: 0');
     const STEP_OBJECT_CSV_EXTRACTOR = 'CsvExtractor';
     const STEP_OBJECT_JSON_EXTRACTOR = 'JsonExtractor';
     const STEP_OBJECT_TXT_EXTRACTOR = 'TxtExtractor';
+    const STEP_OBJECT_TESSERACT_OCR_EXTRACTOR = 'TesseractOcrExtractor';
     const STEP_OBJECT_DATABASE_EXTRACTOR = 'DatabaseExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
     const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
@@ -1167,6 +1194,7 @@ header('Expires: 0');
         $('#edit-csv-fields').hide();
         $('#edit-json-fields').hide();
         $('#edit-txt-fields').hide();
+        $('#edit-tesseract-ocr-fields').hide();
         $('#edit-convertcase-fields').hide();
         $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
@@ -1205,6 +1233,15 @@ header('Expires: 0');
             $('#txt-file-path').val(opts.filePath || '');
             $('#txt-column').val(opts.column !== undefined && opts.column !== '' ? opts.column : 'line');
             $('#step-edit-modal').dialog('option', 'title', 'Edit Txt Extractor');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_TESSERACT_OCR_EXTRACTOR) {
+            $('#edit-tesseract-ocr-fields').show();
+            let cfg = nodeConfig[numericId] || {};
+            let opts = cfg.options || {};
+            $('#tesseract-ocr-file-path').val(opts.filePath || '');
+            $('#tesseract-ocr-column').val(opts.column !== undefined && opts.column !== '' ? opts.column : 'text');
+            $('#tesseract-ocr-language').val(opts.language !== undefined && opts.language !== '' ? opts.language : 'eng');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit Tesseract OCR Extractor');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
             $('#edit-convertcase-fields').show();
@@ -1370,6 +1407,24 @@ $('#convertcase-mode').val(convertCaseModeVal);
                 options: {
                     filePath: filePath,
                     column: column
+                }
+            };
+        } else if (step.object === STEP_OBJECT_TESSERACT_OCR_EXTRACTOR) {
+            let filePath = $('#tesseract-ocr-file-path').val().trim();
+            if (!filePath) {
+                alert('Image file path is required.');
+                return;
+            }
+            let column = $('#tesseract-ocr-column').val().trim() || 'text';
+            let language = $('#tesseract-ocr-language').val() || 'eng';
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: {
+                    filePath: filePath,
+                    column: column,
+                    language: language
                 }
             };
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
