@@ -142,6 +142,36 @@ header('Expires: 0');
                 Runs Tesseract OCR on the image. Each recognized text line becomes one row. Supported formats: PNG, JPEG, TIFF, BMP, GIF.
             </p>
         </div>
+        <div id="edit-pdf-fields" class="edit-step-fields" style="display: none;">
+            <div class="form-group">
+                <label for="pdf-file-path">PDF file path <span class="required">*</span></label>
+                <input type="text" id="pdf-file-path" name="pdfFilePath" placeholder="/path/to/document.pdf">
+            </div>
+            <div class="form-group">
+                <label for="pdf-column">Column name for extracted text</label>
+                <input type="text" id="pdf-column" name="pdfColumn" value="text" placeholder="text">
+            </div>
+            <div class="form-group">
+                <label for="pdf-page-column">Column name for page number (leave blank to omit)</label>
+                <input type="text" id="pdf-page-column" name="pdfPageColumn" value="page" placeholder="page">
+            </div>
+            <div class="form-group">
+                <label for="pdf-language">OCR language (used for scanned pages)</label>
+                <select id="pdf-language" name="pdfLanguage">
+                    <option value="eng">English (eng)</option>
+                    <option value="spa">Spanish (spa)</option>
+                    <option value="fra">French (fra)</option>
+                    <option value="deu">German (deu)</option>
+                    <option value="ita">Italian (ita)</option>
+                    <option value="por">Portuguese (por)</option>
+                    <option value="chi_sim">Chinese Simplified (chi_sim)</option>
+                    <option value="jpn">Japanese (jpn)</option>
+                </select>
+            </div>
+            <p class="edit-hint">
+                Handles any PDF automatically. Digital PDFs are read directly via pdftotext; scanned or image-only pages fall back to Tesseract OCR. Mixed PDFs (some text, some scanned) are handled page by page. Requires poppler-utils and tesseract-ocr.
+            </p>
+        </div>
         <div id="edit-convertcase-fields" class="edit-step-fields" style="display: none;">
             <div class="form-group">
                 <label for="convertcase-columns">Columns to convert <span class="required">*</span></label>
@@ -424,6 +454,7 @@ header('Expires: 0');
     const STEP_OBJECT_JSON_EXTRACTOR = 'JsonExtractor';
     const STEP_OBJECT_TXT_EXTRACTOR = 'TxtExtractor';
     const STEP_OBJECT_TESSERACT_OCR_EXTRACTOR = 'TesseractOcrExtractor';
+    const STEP_OBJECT_PDF_EXTRACTOR = 'PdfExtractor';
     const STEP_OBJECT_DATABASE_EXTRACTOR = 'DatabaseExtractor';
     const STEP_OBJECT_CONVERT_CASE_TRANSFORMER = 'ConvertCaseTransformer';
     const STEP_OBJECT_RENAME_COLUMNS_TRANSFORMER = 'RenameColumnsTransformer';
@@ -1195,6 +1226,7 @@ header('Expires: 0');
         $('#edit-json-fields').hide();
         $('#edit-txt-fields').hide();
         $('#edit-tesseract-ocr-fields').hide();
+        $('#edit-pdf-fields').hide();
         $('#edit-convertcase-fields').hide();
         $('#edit-rename-fields').hide();
         $('#edit-database-fields').hide();
@@ -1242,6 +1274,16 @@ header('Expires: 0');
             $('#tesseract-ocr-column').val(opts.column !== undefined && opts.column !== '' ? opts.column : 'text');
             $('#tesseract-ocr-language').val(opts.language !== undefined && opts.language !== '' ? opts.language : 'eng');
             $('#step-edit-modal').dialog('option', 'title', 'Edit Tesseract OCR Extractor');
+            $('#step-edit-modal').dialog('open');
+        } else if (step.object === STEP_OBJECT_PDF_EXTRACTOR) {
+            $('#edit-pdf-fields').show();
+            let cfgPdf = nodeConfig[numericId] || {};
+            let optsPdf = cfgPdf.options || {};
+            $('#pdf-file-path').val(optsPdf.filePath || '');
+            $('#pdf-column').val(optsPdf.column !== undefined && optsPdf.column !== '' ? optsPdf.column : 'text');
+            $('#pdf-page-column').val(optsPdf.pageColumn !== undefined ? optsPdf.pageColumn : 'page');
+            $('#pdf-language').val(optsPdf.language !== undefined && optsPdf.language !== '' ? optsPdf.language : 'eng');
+            $('#step-edit-modal').dialog('option', 'title', 'Edit PDF Extractor');
             $('#step-edit-modal').dialog('open');
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
             $('#edit-convertcase-fields').show();
@@ -1425,6 +1467,26 @@ $('#convertcase-mode').val(convertCaseModeVal);
                     filePath: filePath,
                     column: column,
                     language: language
+                }
+            };
+        } else if (step.object === STEP_OBJECT_PDF_EXTRACTOR) {
+            let pdfFilePath = $('#pdf-file-path').val().trim();
+            if (!pdfFilePath) {
+                alert('PDF file path is required.');
+                return;
+            }
+            let pdfColumn = $('#pdf-column').val().trim() || 'text';
+            let pdfPageColumn = $('#pdf-page-column').val().trim();
+            let pdfLanguage = $('#pdf-language').val() || 'eng';
+            nodeConfig[numericId] = {
+                stepId: stepId,
+                stepType: step.type,
+                object: step.object,
+                options: {
+                    filePath: pdfFilePath,
+                    column: pdfColumn,
+                    pageColumn: pdfPageColumn,
+                    language: pdfLanguage
                 }
             };
         } else if (step.object === STEP_OBJECT_CONVERT_CASE_TRANSFORMER) {
